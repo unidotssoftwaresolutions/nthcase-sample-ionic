@@ -1,0 +1,283 @@
+/*
+ * Mossgrove's look on Ionic's components (DESIGN.md): one corner scale (4 label holders and fields, 8 tiles and chips,
+ * 12 drawer fronts and pads, 28 dialogs), a 4 px grid, 48 px targets, the system face at the system's text size (rem),
+ * and tonal surfaces instead of shadows. Brass is the item number, Add to cart and the cart badge, and nothing else.
+ */
+
+/* Type: the system face in the platform's scale; monospace only for identifiers. */
+.mg-display { font-size: 2.25rem; line-height: 2.75rem; font-weight: 400; margin: 0; }
+.mg-headline { font-size: 1.75rem; line-height: 2.25rem; font-weight: 400; margin: 0; }
+.mg-headline-small { font-size: 1.5rem; line-height: 2rem; font-weight: 400; margin: 0; }
+.mg-title-large { font-size: 1.375rem; line-height: 1.75rem; font-weight: 400; margin: 0; }
+.mg-title { font-size: 1rem; line-height: 1.5rem; font-weight: 500; letter-spacing: 0.009em; margin: 0; }
+.mg-title-small { font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; letter-spacing: 0.007em; margin: 0; }
+.mg-body-large { font-size: 1rem; line-height: 1.5rem; margin: 0; }
+.mg-body { font-size: 0.875rem; line-height: 1.25rem; margin: 0; }
+.mg-body-small { font-size: 0.75rem; line-height: 1rem; margin: 0; }
+.mg-label { font-size: 0.875rem; line-height: 1.25rem; font-weight: 500; margin: 0; }
+.mg-mono { font-family: ui-monospace, 'SF Mono', 'Droid Sans Mono', monospace; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.03em; margin: 0; }
+.mg-muted { color: var(--mg-on-surface-variant); }
+.mg-error-ink { color: var(--mg-error); }
+.mg-primary-ink { color: var(--mg-primary); display: inline-flex; }
+
+.mg-item-number {
+  display: block;
+  color: var(--mg-tertiary);
+  font-family: ui-monospace, 'SF Mono', 'Droid Sans Mono', monospace;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.mg-icon { flex: none; }
+
+/* Layout helpers on the 4 px grid. */
+.mg-row { display: flex; align-items: center; gap: 12px; }
+.mg-row.mg-top { align-items: flex-start; }
+.mg-grow { flex: 1; min-width: 0; }
+.mg-column { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.mg-intro { padding: 8px 16px; }
+.mg-padded { padding: 16px; }
+.mg-section { margin-top: 8px; }
+.mg-tall { min-height: 48px; margin: 0; }
+
+/* The app's frame: the screen above, the tab bar under it. */
+.mg-shell { position: absolute; inset: 0; display: flex; flex-direction: column; }
+.mg-stage { position: relative; flex: 1; min-height: 0; }
+.mg-tab-bar { flex: none; }
+.mg-tab-bar ion-tab-button { --color-selected: var(--mg-on-secondary-container); }
+.mg-tab-bar ion-tab-button .mg-icon { margin-top: 4px; }
+.mg-tab-label { font-size: 0.75rem; font-weight: 500; margin-top: 4px; }
+.md .mg-tab-bar ion-tab-button.tab-selected .mg-icon {
+  /* Material's active-tab pill */
+  background: var(--mg-secondary-container);
+  border-radius: 16px;
+  box-sizing: content-box;
+  padding: 4px 20px;
+}
+.mg-tab-bar ion-badge { --background: var(--mg-tertiary); --color: var(--mg-on-tertiary); }
+
+ion-toolbar { --background: var(--mg-surface); }
+/* Depth is tonal (DESIGN.md): none of Material's shadows on headers, footers or buttons. */
+ion-header, ion-footer { box-shadow: none !important; }
+ion-header::after, ion-footer::before { display: none; }
+ion-content { --background: var(--mg-surface); }
+ion-title { font-size: 1.375rem; font-weight: 400; }
+.ios ion-title { font-size: 1.0625rem; font-weight: 600; }
+
+/* Fields: Ionic's outlined field, 4 px corners. */
+ion-input.mg-field, ion-input { --border-radius: 4px; --highlight-color-focused: var(--mg-primary); min-height: 56px; }
+ion-input.ion-invalid.ion-touched { --border-color: var(--mg-error); --highlight-color-invalid: var(--mg-error); }
+ion-input ion-button[slot='end'], ion-input ion-button[slot='start'] { --padding-start: 8px; --padding-end: 8px; margin: 0; min-height: 48px; min-width: 48px; }
+.mg-picker { cursor: pointer; }
+.mg-picker-caret { display: inline-flex; transform: rotate(90deg); padding: 0 8px; }
+
+.mg-error-line { display: flex; align-items: center; gap: 6px; margin: 4px 0 0 4px; color: var(--mg-error); font-size: 0.75rem; line-height: 1rem; }
+.mg-error-line.mg-body { font-size: 0.875rem; line-height: 1.25rem; margin: 0; }
+
+/* Buttons: Ionic's, round, 48 px where they end a task. */
+ion-button { --border-radius: 24px; --box-shadow: none; text-transform: none; letter-spacing: 0.007em; font-weight: 500; }
+ion-button[fill='outline'] { --border-width: 1px; }
+.mg-tonal { --background: var(--mg-secondary-container); --color: var(--mg-on-secondary-container); --box-shadow: none; }
+.mg-buttons-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 16px 8px; }
+
+/* Sign in. */
+.mg-signin { display: flex; flex-direction: column; gap: 16px; max-width: 480px; margin: 0 auto; padding: 32px 24px; }
+.mg-mark { color: var(--mg-primary); display: inline-flex; }
+.mg-test-account { margin: 8px 0 0; box-shadow: none; border: 1px solid var(--mg-outline-variant); border-radius: 12px; --background: transparent; }
+.mg-test-account ion-card-content { display: flex; flex-direction: column; gap: 4px; padding: 16px; color: var(--mg-on-surface); }
+.mg-test-account ion-card-content p { font-size: 0.8125rem; }
+.mg-test-account ion-button { align-self: flex-start; margin: 4px 0 0 -12px; }
+
+/* Shop. */
+.mg-shop-head { --padding-start: 16px; --padding-end: 16px; --padding-top: 16px; --padding-bottom: 8px; }
+.mg-shop-head .mg-headline { margin-bottom: 12px; }
+.mg-search { --padding-start: 4px; }
+.mg-search [slot='start'] { display: inline-flex; padding: 0 4px 0 8px; }
+.mg-count { margin-top: 12px; }
+ion-list.mg-drawers { padding: 8px 16px 16px; background: transparent; display: flex; flex-direction: column; gap: 8px; }
+.mg-drawer {
+  --background: var(--mg-surface-container-low);
+  --border-radius: 12px;
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  --inner-padding-top: 0;
+  --inner-padding-bottom: 0;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  --min-height: 80px;
+  border-radius: 12px;
+}
+.mg-drawer-label { flex: 1; min-width: 0; padding: 0 12px; }
+.mg-label-holder {
+  display: inline-flex;
+  flex-direction: column;
+  border: 1px solid var(--mg-outline-variant);
+  border-radius: 4px;
+  padding: 6px 10px;
+  max-width: 100%;
+}
+.mg-label-holder-large { align-self: flex-start; }
+
+/* Glyph tiles: the drawing in its aisle's ink on its aisle's tile. */
+.mg-glyph-tile { display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 8px; }
+.aisle-kitchen { background: var(--mg-kitchen-tile); color: var(--mg-kitchen-ink); }
+.aisle-desk { background: var(--mg-desk-tile); color: var(--mg-desk-ink); }
+.aisle-garden { background: var(--mg-garden-tile); color: var(--mg-garden-ink); }
+.aisle-home { background: var(--mg-home-tile); color: var(--mg-home-ink); }
+
+/* Item. */
+.mg-detail { display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; padding: 8px 16px 24px; }
+.mg-detail > .mg-glyph-tile { align-self: center; margin-bottom: 4px; }
+.mg-quantity { justify-content: space-between; margin-top: 8px; }
+.mg-stepper { display: inline-flex; align-items: center; }
+.mg-step { --border-radius: 50%; --padding-start: 0; --padding-end: 0; width: 48px; height: 48px; margin: 0; --border-color: var(--mg-outline); --color: var(--mg-on-surface-variant); }
+.mg-step-value { min-width: 40px; text-align: center; font-size: 1rem; font-weight: 500; }
+
+/* Empty, error and loading states: one centred shape. */
+.mg-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 32px; min-height: 60%; text-align: center; box-sizing: border-box; }
+.mg-state-message { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mg-state-icon { display: inline-flex; color: var(--mg-on-surface-variant); margin-bottom: 8px; }
+.mg-state-icon.mg-error-ink { color: var(--mg-error); }
+
+/* Cart. */
+.mg-cart-lines { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.mg-cart-line { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--mg-outline-variant); }
+.mg-cart-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mg-checkout ion-toolbar { --background: var(--mg-surface-container); --padding-start: 0; --padding-end: 0; }
+.mg-checkout-inner { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.mg-checkout-inner .mg-row { justify-content: space-between; }
+
+/* Dialogs: Ionic modals drawn as dialogs, 28 px corners. */
+ion-modal.mg-dialog { --width: min(320px, calc(100% - 48px)); --height: auto; --border-radius: 28px; --background: var(--mg-surface-container-high); }
+ion-modal.mg-dialog.mg-date-dialog { --width: min(360px, calc(100% - 32px)); }
+ion-modal.mg-dialog .ion-page { position: relative; contain: content; }
+.mg-dialog-body { padding: 24px 24px 12px; display: flex; flex-direction: column; gap: 16px; color: var(--mg-on-surface); }
+.mg-date-dialog .mg-dialog-body { padding: 12px 8px 8px; }
+.mg-date-dialog ion-datetime { --background: transparent; width: 100%; max-width: 100%; }
+.mg-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+ion-alert { --background: var(--mg-surface-container-high); }
+/* Material 3 writes dialog buttons as they are spelled ("Cancel", "Empty"), not in capitals. */
+ion-alert .alert-button { text-transform: none; }
+ion-alert .alert-button.alert-button-role-destructive { color: var(--mg-error); }
+
+/* Lab, lists. */
+ion-list { background: transparent; }
+ion-item { --background: transparent; --min-height: 56px; }
+ion-list-header { color: var(--mg-primary); font-size: 0.875rem; font-weight: 500; padding-top: 16px; min-height: 40px; }
+ion-label h2 { font-size: 1rem !important; font-weight: 400; }
+ion-label p { color: var(--mg-on-surface-variant) !important; }
+
+/* Form. */
+.mg-form { gap: 12px; }
+.mg-toggle-row { min-height: 56px; width: 100%; font-size: 1rem; }
+ion-checkbox.mg-toggle-row { min-height: 48px; }
+.mg-joined { margin: 0; box-shadow: none; border-radius: 12px; --background: var(--mg-primary-container); --color: var(--mg-on-primary-container); }
+.mg-joined ion-card-content { color: var(--mg-on-primary-container); padding: 16px; font-size: 0.875rem; }
+ion-range { --bar-background-active: var(--mg-primary); --knob-background: var(--mg-primary); padding: 0 8px; }
+
+/* Gestures. */
+.mg-status-strip ion-toolbar { --background: var(--mg-secondary-container); --color: var(--mg-on-secondary-container); --padding-start: 16px; --padding-end: 16px; --min-height: 48px; }
+.mg-benches { gap: 16px; }
+.mg-pads { display: flex; gap: 12px; }
+.mg-pad {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  height: 104px;
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--mg-surface-container-low);
+  border: 1px solid var(--mg-outline-variant);
+  border-radius: 12px;
+  color: var(--mg-on-surface);
+  font: inherit;
+  text-align: left;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.mg-swipe { height: 140px; align-items: center; justify-content: center; touch-action: none; flex: none; }
+.mg-drag { display: flex; flex-direction: column; gap: 8px; }
+.mg-drag-row { display: flex; align-items: center; gap: 24px; }
+.mg-drag-label {
+  width: 120px;
+  height: 56px;
+  flex: none;
+  background: var(--mg-tertiary-container);
+  color: var(--mg-on-tertiary-container);
+  border: 1px solid var(--mg-tertiary);
+  border-radius: 4px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  position: relative;
+  z-index: 2;
+}
+.mg-drop {
+  flex: 1;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--mg-surface-container-low);
+  border: 2px solid var(--mg-outline);
+  border-radius: 12px;
+}
+.mg-drop-done { background: var(--mg-primary-container); color: var(--mg-on-primary-container); }
+.mg-two-finger { height: 160px; position: relative; touch-action: none; }
+.mg-swatch { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; background: var(--mg-primary); border-radius: 4px; }
+.mg-pad-value { position: absolute; left: 12px; bottom: 12px; }
+.mg-shelf { height: 56px; box-sizing: border-box; padding: 16px; background: var(--mg-surface-container); border-radius: 12px; }
+
+/* Care guide: the page fills the screen under its status line. */
+.mg-webview { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--mg-surface); }
+.mg-webview iframe { flex: 1; width: 100%; border: 0; background: var(--mg-surface); }
+
+/* Gift cards. */
+.mg-chips { display: flex; gap: 8px; }
+ion-chip { --background: transparent; border-radius: 8px; min-height: 32px; margin: 0; }
+ion-chip[outline] { border: 1px solid var(--mg-outline); }
+ion-chip.mg-chip-selected { --background: var(--mg-secondary-container); --color: var(--mg-on-secondary-container); }
+ion-chip .mg-icon { margin-right: 4px; }
+.mg-designs { display: flex; gap: 12px; }
+.mg-design { flex: 1; margin: 0; box-shadow: none; border-radius: 12px; --background: var(--mg-surface-container-low); border: 2px solid transparent; }
+.mg-design-chosen { border-color: var(--mg-primary); }
+.mg-design ion-card-content { display: flex; flex-direction: column; gap: 4px; padding: 12px; color: var(--mg-on-surface); }
+.mg-design-art { display: flex; align-items: center; justify-content: center; height: 72px; border-radius: 8px; margin-bottom: 4px; }
+
+/* Settings. */
+.mg-settings ion-toggle, .mg-settings ion-radio { width: 100%; min-height: 48px; }
+.mg-settings ion-list-header:first-child { padding-top: 8px; }
+
+/* The snackbar: inverse surface, 10 s, over the tab bar's edge. */
+.mg-snackbar {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + var(--ion-safe-area-bottom, 0px));
+  z-index: 30000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 8px 4px 16px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: var(--mg-inverse-surface);
+  color: var(--mg-inverse-on-surface);
+  font-size: 0.875rem;
+}
+.mg-snackbar-raised { bottom: calc(64px + var(--ion-safe-area-bottom, 0px)); }
+.mg-snackbar-text { flex: 1; padding: 10px 0; }
+.mg-snackbar-action { --color: var(--mg-inverse-primary); margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

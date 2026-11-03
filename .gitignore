@@ -1,0 +1,30 @@
+# Dependencies and build output
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Test output (Playwright's report and failure traces; the screenshots in docs/ are kept)
+test-results/
+playwright-report/
+coverage/
+
+# Native build output and local SDK paths (android/ and ios/ also carry Capacitor's own .gitignore)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+ios/App/build/
+ios/App/DerivedData/
+
+# Editors and macOS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Signing material never belongs here: releases are debug-signed or unsigned simulator builds
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
