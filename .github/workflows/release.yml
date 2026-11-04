@@ -1,4 +1,8 @@
-# On a v* tag: test, build the debug-signed APK and the Simulator .app, and attach both to a GitHub Release.
+# On a v* tag: every check (ci.yml, the fast checks and the device suite on an iOS simulator), and only when all of
+# them are green, the GitHub Release with the debug-signed APK, the zipped Simulator .app and SHA256SUMS. A red check
+# publishes nothing.
+#
+# No concurrency: a release is never cancelled halfway.
 #
 # No secrets: the APK is signed with the build's own debug key, and the Simulator .app needs no signing at all. The
 # token is the run's own GITHUB_TOKEN, and only the release job can write.
@@ -13,84 +17,31 @@ permissions:
   contents: read
 
 jobs:
-  android:
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
-      - run: npx cap sync android
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-      - run: ./gradlew --no-daemon --max-workers=3 assembleDebug
-        working-directory: android
-      - name: Name the APK after the tag
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          mkdir -p dist-release
-          cp android/app/build/outputs/apk/debug/app-debug.apk "dist-release/mossgrove-ionic-${TAG}-debug.apk"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: android
-          path: dist-release/
-          if-no-files-found: error
-
-  ios:
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npx cap sync ios
-      - name: Build the Simulator app and name it after the tag
-        working-directory: ios/App
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages -jobs 4 \
-            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
-          mkdir -p ../../dist-release
-          ditto -c -k --keepParent build/DerivedData/Build/Products/Debug-iphonesimulator/App.app \
-            "../../dist-release/mossgrove-ionic-${TAG}-simulator.zip"
-      - name: Install and open it on an iOS 26 simulator
-        run: ./scripts/ci-simulator-smoke.sh build/smoke ios/App/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ios
-          path: dist-release/
-          if-no-files-found: error
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      version: ${{ github.ref_name }}
+      devices: true
 
   github-release:
-    needs: [android, ios]
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
         with:
+          name: mossgrove-ionic-apk
           path: dist
-          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: mossgrove-ionic-simulator
+          path: dist
       - name: Create the release
+        timeout-minutes: 5
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}

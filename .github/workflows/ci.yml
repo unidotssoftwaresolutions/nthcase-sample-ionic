@@ -1,0 +1,170 @@
+# Every check. build.yml and release.yml call this workflow; it never runs on its own.
+#
+#   the fast checks, on every run     web-and-android: typecheck, lint, Vitest, the production build, Playwright in
+#                                     Chromium (light, dark) and WebKit, the debug APK (ubuntu)
+#                                     ios: the Simulator .app, zipped (macos: only a Mac builds for the iOS Simulator)
+#   the device suite, when asked      ios: the zipped .app installed and opened on an iOS 26 simulator, the deep link
+#   (`devices: true`)                 opened, a screenshot of each
+#
+# Playwright runs in browsers, not on an emulator or a simulator, so it stays in the fast checks: it is this app's id
+# walk and its screenshots, in about 4 minutes on ubuntu. This app has no Android emulator job.
+#
+# build.yml asks for the device suite on "Run workflow" and on the weekly schedule; release.yml always does. On a push
+# or a pull request the simulator step is skipped: no simulator boots.
+#
+# Cached, under keys made of what they hold: npm's downloads (actions/setup-node, package-lock.json), Gradle's folders
+# (gradle/actions/setup-gradle's own keys) and Swift Package Manager's checkout of capacitor-swift-pm (the project's
+# Package.resolved). Only runs on main write a cache; a pull request reads it.
+#
+# Every action is named by its commit, not by a tag someone can move. The version each SHA was on 2026-11-03 is in the
+# comment beside it (actions/cache: 2026-11-04). To update one, look up the new version's commit, read what changed,
+# and change both.
+name: ci
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: What the APK and the zip are named after, mossgrove-ionic-<version>-debug.apk (the tag, or build-<run number>)
+        type: string
+        required: true
+      devices:
+        description: Run the device suite on an iOS simulator as well
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-and-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+      - timeout-minutes: 10
+        run: npm ci
+      - timeout-minutes: 5
+        run: npm run typecheck
+      - timeout-minutes: 5
+        run: npm run lint
+      # Logic, the flows of scenarios 01–10 and the id census, in jsdom.
+      - timeout-minutes: 10
+        run: npm test
+      - timeout-minutes: 5
+        run: npm run build
+      # The production build in Playwright's own browsers: Chromium light and dark (every screen, every id, the
+      # screenshots) and WebKit, the engine of iOS's web view (every screen, every id).
+      - timeout-minutes: 10
+        run: npx playwright install --with-deps chromium webkit
+      - timeout-minutes: 15
+        run: npm run e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: screenshots
+          path: docs/screenshots/
+          retention-days: 14
+      - if: failure()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      # The web build goes into the app: no server, no live reload.
+      - timeout-minutes: 5
+        run: npx cap sync android
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        timeout-minutes: 5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        timeout-minutes: 5
+      # Caches Gradle's folders (the wrapper, the dependencies, the build cache) under Gradle's own keys.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        timeout-minutes: 10
+      - timeout-minutes: 20
+        run: ./gradlew --no-daemon --max-workers=3 assembleDebug
+        working-directory: android
+      # dist/ is Vite's web build, so the APK and the zip go in dist-release/
+      - name: Name the APK after the version
+        timeout-minutes: 2
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          mkdir -p dist-release
+          cp android/app/build/outputs/apk/debug/app-debug.apk "dist-release/mossgrove-ionic-${VERSION}-debug.apk"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: mossgrove-ionic-apk
+          path: dist-release/mossgrove-ionic-${{ inputs.version }}-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  ios-simulator:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+      - timeout-minutes: 10
+        run: npm ci
+      - timeout-minutes: 5
+        run: npm run build
+      - timeout-minutes: 5
+        run: npx cap sync ios
+      # Swift Package Manager's checkout of capacitor-swift-pm and its binary frameworks, keyed on the pinned version.
+      - name: Cache Swift packages
+        timeout-minutes: 5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ios/App/build/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      - name: Build the Simulator app (arm64 and x86_64, unsigned) and name it after the version
+        working-directory: ios/App
+        timeout-minutes: 20
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData -clonedSourcePackagesDirPath build/SourcePackages -jobs 4 \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
+          mkdir -p ../../dist-release
+          ditto -c -k --keepParent build/DerivedData/Build/Products/Debug-iphonesimulator/App.app \
+            "../../dist-release/mossgrove-ionic-${VERSION}-simulator.zip"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: mossgrove-ionic-simulator
+          path: dist-release/mossgrove-ionic-${{ inputs.version }}-simulator.zip
+          if-no-files-found: error
+          retention-days: 14
+      # Device suite: the app as built above, on a simulator.
+      - name: Install and open it on an iOS 26 simulator
+        if: ${{ inputs.devices }}
+        timeout-minutes: 20
+        run: ./scripts/ci-simulator-smoke.sh build/smoke ios/App/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+      - if: ${{ always() && inputs.devices }}
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: simulator-smoke
+          path: build/smoke/
+          retention-days: 14
