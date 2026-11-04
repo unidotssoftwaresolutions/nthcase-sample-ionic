@@ -9,7 +9,7 @@
 # Playwright runs in browsers, not on an emulator or a simulator, so it stays in the fast checks: it is this app's id
 # walk and its screenshots, in about 4 minutes on ubuntu. This app has no Android emulator job.
 #
-# build.yml asks for the device suite on "Run workflow" and on the weekly schedule; release.yml always does. On a push
+# build.yml asks for the device suite on "Run workflow" and on the monthly schedule; release.yml always does. On a push
 # or a pull request the simulator step is skipped: no simulator boots.
 #
 # Cached, under keys made of what they hold: npm's downloads (actions/setup-node, package-lock.json), Gradle's folders

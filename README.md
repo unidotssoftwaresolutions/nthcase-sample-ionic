@@ -222,7 +222,7 @@ typecheck, lint, Vitest, the production build, Playwright in Chromium and WebKit
 screenshots) and the debug APK; on `macos-latest` the zipped Simulator `.app`. The two jobs run side by side, in about 7
 minutes. A push that changes only `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE` or
 `docs/screenshots/` starts nothing. The device suite (the `.app` installed and opened on an iOS 26 simulator, with the
-deep link, about 10 minutes more) runs on "Run workflow", every Monday at 03:17 UTC, and before every release: a `v*`
+deep link, about 10 minutes more) runs on "Run workflow", at 03:17 UTC on the 1st of each month, and before every release: a `v*`
 tag publishes only when the fast checks and the suite are green. To start the suite by hand, open Actions → build →
 Run workflow on `main`, or run `gh workflow run build.yml --ref main`. The jobs are in
 [.github/workflows/ci.yml](.github/workflows/ci.yml).

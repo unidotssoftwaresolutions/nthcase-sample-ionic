@@ -3,14 +3,14 @@
 #   a push to main, a pull request    the fast checks only: typecheck, lint, Vitest, Playwright in Chromium and WebKit,
 #                                     the APK and the zipped Simulator .app (about 7 minutes; one ubuntu and one macos
 #                                     job side by side)
-#   "Run workflow", every Monday      the fast checks and the device suite: the .app on an iOS 26 simulator (about
+#   "Run workflow", the 1st monthly  the fast checks and the device suite: the .app on an iOS 26 simulator (about
 #                                     10 minutes more in the macos job)
 #
 # A push or a pull request that changes only the files below starts nothing: no test, no build step and no script reads
 # them (Playwright writes docs/screenshots/, and nothing reads it). SPEC.md, nthcase/ and art/ are NOT here: the tests,
 # the Playwright walk and scripts/convert-art.mjs read them.
 #
-# A newer push to the same branch or pull request cancels the older run. "Run workflow" and the weekly run are never
+# A newer push to the same branch or pull request cancels the older run. "Run workflow" and the monthly run are never
 # cancelled by a push, and release.yml has no concurrency at all: a release always runs to its end.
 name: build
 
@@ -34,8 +34,8 @@ on:
       - docs/screenshots/**
   workflow_dispatch:
   schedule:
-    # Monday 03:17 UTC: the device suite once a week, so drift in the runner's simulators is still caught
-    - cron: "17 3 * * 1"
+    # 03:17 UTC on the 1st of each month: the device suite once a month, so drift in the runner's simulators is still caught
+    - cron: "17 3 1 * *"
 
 permissions:
   contents: read
