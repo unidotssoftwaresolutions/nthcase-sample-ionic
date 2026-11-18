@@ -1,10 +1,10 @@
-import { act } from '@testing-library/react';
+import { act, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { openDeepLink, push, setSetting, switchTab } from '../src/data/store';
 import { idTemplates } from '../src/testIds';
-import { byId, ionEvent, pause, presented, shows, signedIn, tap, typeInto, renderApp } from './helpers';
+import { byId, gone, ionEvent, pause, presented, shows, signedIn, tap, typeInto, renderApp } from './helpers';
 
 const root = join(import.meta.dirname, '..');
 const spec = JSON.parse(readFileSync(join(root, 'nthcase/test-ids.json'), 'utf8')) as { spec: string; pattern: string; ids: { id: string; screen: string }[] };
@@ -22,26 +22,38 @@ function pageIds(): string[] {
 
 /** A concrete id matches a JSON id: exactly, or by its template ("shop_item_{id}" matches "shop_item_7"). */
 function templateOf(id: string): string | undefined {
-  return specIds.find((t) => t === id || new RegExp(`^${t.replace(/\{(id|n)\}/, '\\d+').replace('{key}', '(kitchen|desk|garden|home)')}$`).test(id));
+  return specIds.find((t) => t === id || templatePattern(t).test(id));
 }
 
+/** The JSON's placeholders as patterns: numbers, an aisle key, a board cell ("m18"). */
+export function templatePattern(template: string): RegExp {
+  const source = template
+    .replace('{col}{row}', '[a-z](?:[1-9]|1\\d|2[0-6])')
+    .replace(/\{(id|n|m|s)\}/g, '\\d+')
+    .replace('{key}', '(kitchen|desk|garden|home)');
+  return new RegExp(`^${source}$`);
+}
+
+/** Built only by the apps that build the Lobby twice, Android and iOS (SPEC.md §7). */
+const NOT_IN_THIS_APP = ['lab_lobby_views'];
+
 describe('the id list (SPEC.md §7)', () => {
-  it('is spec 1.0 with 147 ids, all snake_case', () => {
-    expect(spec.spec).toBe('1.0');
-    expect(specIds).toHaveLength(147);
+  it('is spec 1.1 with 193 ids, all snake_case', () => {
+    expect(spec.spec).toBe('1.1');
+    expect(specIds).toHaveLength(193);
     const shape = new RegExp(spec.pattern);
-    for (const id of specIds) expect(id.replace(/\{\w+\}/, 'x'), id).toMatch(shape);
+    for (const id of specIds) expect(id.replace(/\{\w+\}/g, 'x'), id).toMatch(shape);
   });
 
-  it('is exactly the app ids plus the care guide page ids', () => {
+  it('is exactly the app ids plus the care guide page ids, less the second Lobby only Android and iOS build', () => {
     const declared = [...idTemplates(), ...pageIds()].sort();
-    expect(declared).toEqual([...specIds].sort());
+    expect(declared).toEqual(specIds.filter((id) => !NOT_IN_THIS_APP.includes(id)).sort());
     expect(new Set(declared).size).toBe(declared.length);
   });
 });
 
 describe('every id on its screen, in the state the spec names', () => {
-  it('reaches each of the 138 app ids in the rendered DOM, on the element a person acts on, once each', async () => {
+  it('reaches each of the 183 app ids in the rendered DOM, on the element a person acts on, once each', async () => {
     const seen = new Map<string, string>(); // id → tag of the element that carries it
 
     /** Collects every id on screen now, and checks each one as it goes. */
@@ -182,6 +194,33 @@ describe('every id on its screen, in the state the spec names', () => {
     look();
     await tap('top_bar_back');
 
+    // The Lobby: every scroller and its contents are in the DOM at once; then each panel and the quick sheet.
+    await tap('lab_lobby');
+    await byId('lobby_board_cell_z26');
+    look();
+    await tap('lobby_bar_saved');
+    await byId('lobby_saved_screen');
+    look();
+    await tap('lobby_bar_home');
+    await tap('lobby_row_1_tile_1'); // a tap is a tap once the double-tap time has passed
+    await byId('lobby_detail');
+    look();
+    await tap('lobby_detail_back');
+    await tap('lobby_banner_2');
+    await byId('lobby_promo');
+    look();
+    await tap('lobby_promo_back');
+    await act(async () => {
+      fireEvent.pointerDown(document.getElementById('lobby_top_row_tile_3')!, { button: 0 });
+    });
+    // the long press fires after 500 ms of real time
+    await presented('ion-modal.mg-lobby-sheet', 3000);
+    await byId('lobby_sheet_rate');
+    look();
+    await tap('lobby_sheet_rate');
+    await gone('lobby_sheet');
+    await tap('top_bar_back');
+
     // Settings.
     await tap('nav_settings');
     await byId('settings_version');
@@ -198,6 +237,14 @@ describe('every id on its screen, in the state the spec names', () => {
     expect(missing).toEqual([]);
     for (let n = 1; n <= 40; n++) expect(seen.has(`shop_item_${n}`), `shop_item_${n}`).toBe(true);
     for (let n = 1; n <= 5; n++) expect(seen.has(`slow_slot_${n}`), `slow_slot_${n}`).toBe(true);
+    // every concrete Lobby id
+    const lobbyIds = [...seen.keys()].filter((id) => id.startsWith('lobby_'));
+    expect(lobbyIds.filter((id) => id.startsWith('lobby_board_cell_'))).toHaveLength(676);
+    expect(lobbyIds.filter((id) => /^lobby_row_\d_tile_\d+$/.test(id))).toHaveLength(80);
+    expect(lobbyIds.filter((id) => id.startsWith('lobby_top_row_tile_'))).toHaveLength(10);
+    expect(lobbyIds.filter((id) => id.startsWith('lobby_saved_delay_'))).toHaveLength(5);
+    // 34 single ids and 838 from templates: the 872 Android's lobby_ids.xml declares
+    expect(lobbyIds).toHaveLength(872);
     for (const key of ['kitchen', 'desk', 'garden', 'home']) expect(seen.get(`form_category_option_${key}`)).toBe('BUTTON');
     // the controls a person types into are native inputs
     for (const id of ['signin_email', 'signin_password', 'shop_search', 'form_name', 'form_email', 'form_age', 'form_password', 'form_category']) {

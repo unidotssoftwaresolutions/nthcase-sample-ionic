@@ -76,12 +76,12 @@ export function ItemNumber({ item, id }: { item: Item; id?: string }) {
 }
 
 /** The item's drawing on its aisle's tint. */
-export function GlyphTile({ item, size, label, id }: { item: Item; size: number; label?: string; id?: string }) {
+export function GlyphTile({ item, size, width, label, id }: { item: Item; size: number; width?: number; label?: string; id?: string }) {
   const art = GLYPHS[item.glyph];
   return (
     <span
       className={`mg-glyph-tile aisle-${item.category}`}
-      style={{ width: size, height: size }}
+      style={{ width: width ?? size, height: size }}
       role={label ? 'img' : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}

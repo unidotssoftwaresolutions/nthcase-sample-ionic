@@ -24,14 +24,17 @@ import { GesturesScreen } from './screens/Gestures';
 import { GiftCardsScreen } from './screens/GiftCards';
 import { ItemScreen } from './screens/Item';
 import { LabScreen } from './screens/Lab';
+import { LobbyScreen } from './screens/Lobby';
 import { OrdersScreen } from './screens/Orders';
 import { SettingsScreen } from './screens/Settings';
 import { ShopScreen } from './screens/Shop';
 import { SignInScreen } from './screens/SignIn';
 import { SlowScreen } from './screens/Slow';
 import { T, tid } from './testIds';
+import { useBrowserBack } from './ui/browserBack';
 import { closeTopOverlay } from './ui/overlays';
 import { Icon } from './ui/parts';
+import { useTabButtonIds } from './ui/tabBar';
 import { useThemeOnDocument } from './ui/theme';
 
 // ion-tab-bar is used as Ionic's web component: its React wrapper needs Ionic's router, and the app keeps its own
@@ -65,6 +68,8 @@ function ScreenFor({ entry }: { entry: Entry }) {
       return <OrdersScreen />;
     case 'giftcards':
       return <GiftCardsScreen />;
+    case 'lobby':
+      return <LobbyScreen />;
   }
 }
 
@@ -78,21 +83,7 @@ const TAB_BUTTONS: { tab: Tab; label: string; icon: 'shop' | 'cart' | 'lab' | 's
 /** The bottom bar. The Cart tab says its count: a brass badge, and its own accessible label ("Cart, 2 items"). */
 function TabBar({ selected, count }: { selected: Tab; count: number }) {
   const bar = useRef<HTMLIonTabBarElement>(null);
-  // ion-tab-button names its host "tab-button-<tab>" when it first draws, over any id it was given. Whenever that
-  // happens the spec's id (kept in data-testid) goes straight back on; Ionic does not set it again for the same tab.
-  useEffect(() => {
-    const el = bar.current;
-    if (!el) return;
-    const restore = () =>
-      el.querySelectorAll('ion-tab-button').forEach((button) => {
-        const id = button.getAttribute('data-testid');
-        if (id && button.id !== id) button.id = id;
-      });
-    restore();
-    const observer = new MutationObserver(restore);
-    observer.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['id'] });
-    return () => observer.disconnect();
-  }, []);
+  useTabButtonIds(bar);
   // The tab's own label says the count. ion-tab-button copies aria-label to its inner link only when it first draws,
   // so the label is written onto that link here, after every change, once the link exists.
   useEffect(() => {
@@ -224,6 +215,7 @@ export function App() {
   const host = useRef<HTMLDivElement>(null);
   useThemeOnDocument();
   useSystemBack();
+  useBrowserBack();
   useEdgeSwipe(host);
   useDeepLinks();
 

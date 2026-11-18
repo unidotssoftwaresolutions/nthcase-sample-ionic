@@ -1,0 +1,205 @@
+/*
+ * The Lobby (SPEC.md §5, 1.1). Its scrollers are CSS scrollers: the pager a scroll-snap strip, the Top 10 row, the chips
+ * and the rows `overflow-x: auto`, the inner list `overflow-y: auto` at a fixed height, the board `overflow: auto` both
+ * ways, and the page ion-content's own. Nothing here hides an element the spec says is absent: absent means out of the
+ * DOM (Lobby.tsx), never `display: none`.
+ */
+
+/* A touchable element: the web view's own text selection, callout and double-tap zoom stay out of its touches. */
+.mg-touchable {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button.mg-touchable {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  text-align: start;
+  cursor: pointer;
+}
+button.mg-touchable:focus-visible { outline: 2px solid var(--mg-primary); outline-offset: 2px; }
+
+.mg-lobby-small-label { font-size: 0.75rem; line-height: 1rem; font-weight: 500; letter-spacing: 0.04em; margin: 0; }
+
+/* The touch log: three lines' room always, so nothing below it moves when a line is added. */
+.mg-lobby-log {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 8px 4px 16px;
+  background: var(--mg-surface-container-low);
+}
+.mg-lobby-log-lines {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  min-height: 3rem;
+  max-height: 3rem;
+  overflow: hidden;
+  /* one entry a line, cut with an ellipsis on screen; the text itself is whole for whoever reads it */
+  white-space: pre;
+  text-overflow: ellipsis;
+}
+.mg-lobby-log-side { display: flex; flex-direction: column; align-items: flex-end; }
+.mg-lobby-log-side .mg-label { padding: 0 8px; font-size: 0.75rem; }
+.mg-lobby-log-side ion-button { margin: 0; min-height: 32px; }
+
+/* Saved appears after, and Show the pager at the end of its line. */
+.mg-lobby-delay { flex: none; padding: 4px 16px; background: var(--mg-surface); }
+.mg-lobby-delay-line { gap: 8px; }
+.mg-lobby-toggle { font-size: 0.875rem; font-weight: 500; --track-background-checked: var(--mg-primary); flex: none; }
+.mg-lobby-segment { margin-top: 2px; --background: transparent; }
+.mg-lobby-segment ion-segment-button { min-width: 0; min-height: 40px; text-transform: none; letter-spacing: 0; font-size: 0.875rem; --indicator-color: var(--mg-primary); --color-checked: var(--mg-primary); }
+
+/* The promo pager: one banner a page, snapped. */
+.mg-lobby-pager {
+  flex: none;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  height: 100px;
+  padding-top: 4px;
+}
+.mg-lobby-pager::-webkit-scrollbar { display: none; }
+.mg-lobby-pager-page { flex: 0 0 100%; box-sizing: border-box; padding: 0 16px; scroll-snap-align: start; scroll-snap-stop: always; }
+.mg-lobby-banner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 16px !important;
+  border-radius: 12px;
+  background: var(--mg-primary-container) !important;
+  color: var(--mg-on-primary-container) !important;
+}
+.mg-lobby-pager-line { flex: none; padding: 0 16px; gap: 8px; min-height: 40px; }
+.mg-lobby-dots-line { gap: 8px; }
+.mg-lobby-dots { display: inline-flex; align-items: center; gap: 6px; }
+.mg-lobby-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mg-outline-variant); }
+.mg-lobby-dot-on { width: 10px; height: 10px; background: var(--mg-primary); }
+
+/* Headings above the rows, and the position lines. */
+.mg-lobby-heading { color: var(--mg-primary); padding: 16px 16px 8px; }
+.mg-lobby-top-heading { flex: none; padding: 8px 16px 4px; }
+
+/* The horizontal strips: the Top 10 row, the chips, the four rows. */
+.mg-lobby-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: 0 16px 4px;
+}
+.mg-lobby-strip::-webkit-scrollbar { display: none; }
+/* the padding at the end of a scroller is not kept by every engine: a spacer keeps it */
+.mg-lobby-strip::after { content: ''; flex: 0 0 8px; }
+.mg-lobby-top-row { flex: none; }
+.mg-lobby-tile { flex: 0 0 100px; width: 100px; display: flex; flex-direction: column; gap: 4px; }
+.mg-lobby-tile-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-lobby-top-tile .mg-glyph-tile svg { width: 40px; height: 40px; }
+
+.mg-lobby-chips { padding-top: 8px; padding-bottom: 8px; }
+.mg-lobby-chip {
+  flex: none;
+  margin: 0;
+  min-height: 32px;
+  border-radius: 8px;
+  --background: var(--mg-surface);
+  --color: var(--mg-on-surface);
+  border: 1px solid var(--mg-outline);
+  gap: 6px;
+}
+.mg-lobby-chip-on { --background: var(--mg-secondary-container); --color: var(--mg-on-secondary-container); border-color: var(--mg-secondary-container); }
+
+/* The grid: 2 × 6, part of the page, never a scroller of its own. */
+.mg-lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px; }
+.mg-lobby-cell {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 8px !important;
+  border: 1px solid var(--mg-outline-variant) !important;
+  border-radius: 8px;
+  min-width: 0;
+}
+
+/* The inner list: 240 high, inside the page, scrolls on its own. */
+.mg-lobby-inner {
+  height: 240px;
+  margin: 0 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--mg-outline-variant);
+  border-radius: 8px;
+}
+.mg-lobby-line {
+  display: block;
+  width: 100%;
+  padding: 14px 12px !important;
+  border-bottom: 1px solid var(--mg-outline-variant) !important;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* The board: a 280 square window onto 26 × 26 cells of 56, one element that scrolls both ways. */
+.mg-lobby-board-frame { display: flex; justify-content: center; }
+.mg-lobby-board {
+  width: calc(var(--mg-board-cell) * 5);
+  height: calc(var(--mg-board-cell) * 5);
+  overflow: auto;
+  border: 1px solid var(--mg-outline);
+  border-radius: 4px;
+}
+.mg-lobby-board-cells { display: grid; grid-template-columns: repeat(26, var(--mg-board-cell)); width: calc(var(--mg-board-cell) * 26); }
+.mg-lobby-board-cell {
+  width: var(--mg-board-cell);
+  height: var(--mg-board-cell);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  text-align: center !important;
+  box-sizing: border-box;
+  border: 0.5px solid var(--mg-outline-variant) !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mg-lobby-footer { text-align: center; padding: 24px 16px 48px; }
+.mg-lobby-footer p { margin: 0; }
+
+/* Panels take the place of the pager, the Top 10 row and the page. */
+.mg-lobby-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  background: var(--mg-surface);
+}
+.mg-lobby-panel p { margin: 0; }
+.mg-lobby-panel ion-button { margin-top: 8px; }
+
+.mg-lobby-bar { flex: none; }
+
+/* The quick sheet: as tall as its content. */
+ion-modal.mg-lobby-sheet { --height: auto; --border-radius: 28px; --background: var(--mg-surface-container-low); }
+.mg-lobby-sheet-body { padding: 8px 16px 24px; }
+.mg-lobby-sheet-body h2 { margin: 16px 0 12px; }
+.mg-lobby-sheet-button { --color: var(--mg-primary); min-height: 48px; margin: 0; text-align: start; }
+.mg-lobby-sheet-button::part(native) { justify-content: flex-start; }

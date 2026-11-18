@@ -45,6 +45,9 @@ class FakePlatform implements Platform {
     this.backHandler = handler;
     return () => (this.backHandler = null);
   }
+  usesBrowserHistory() {
+    return false;
+  }
   exitApp() {
     this.exited += 1;
   }

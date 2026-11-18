@@ -6,13 +6,14 @@ Clone it, build it, and run your first NthCase test on it in minutes.
 
 It is one of five identical Mossgrove apps. The same screens, test ids, texts and scenarios are built in Kotlin +
 Jetpack Compose, SwiftUI, Flutter, React Native and Ionic React + Capacitor (this one), all from one spec:
-[SPEC.md](SPEC.md), **spec 1.0**. Every verb NthCase supports has a place to land, and so do the hard cases real apps
-have: a slow screen, a failed load with retry, a web view, a system permission prompt, a modal, and a screen with no
-test ids at all.
+[SPEC.md](SPEC.md), **spec 1.1**. Every verb NthCase supports has a place to land, and so do the hard cases real apps
+have: a slow screen, a failed load with retry, a web view, a system permission prompt, a modal, a screen with no
+test ids at all, and (new in 1.1) the Lobby, a screen of many scrollers whose bar item comes late.
 
 - No network, no analytics, no ads, no tracking. Everything is seeded inside the app, so every run is the same.
-- One codebase, two apps: an Android `.apk` and an iOS Simulator `.app`, both a web view around the same bundled
-  web app.
+- One codebase, three targets: an Android `.apk` and an iOS Simulator `.app`, both a web view around the same bundled
+  web app, and the same web app in a browser at **https://unidotssoftwaresolutions.github.io/nthcase-sample-ionic/**
+  (GitHub Pages, deployed from `main`).
 
 | Sign in | Shop | Item | Cart |
 | --- | --- | --- | --- |
@@ -23,8 +24,12 @@ test ids at all.
 | <img src="docs/screenshots/light/14-gestures.png" width="180" alt="Gestures"> | <img src="docs/screenshots/light/15-webview.png" width="180" alt="Care guide"> | <img src="docs/screenshots/light/20-orders-error.png" width="180" alt="Error + retry"> | <img src="docs/screenshots/light/21-gift-cards.png" width="180" alt="No test ids"> |
 | Settings | Settings dialog | Dark | Deep link, unknown id |
 | <img src="docs/screenshots/light/22-settings.png" width="180" alt="Settings"> | <img src="docs/screenshots/light/23-settings-dialog.png" width="180" alt="Settings dialog"> | <img src="docs/screenshots/dark/03-shop.png" width="180" alt="Shop, dark"> | <img src="docs/screenshots/light/24-deep-link-unknown.png" width="180" alt="Deep link, unknown id"> |
+| Lobby | Lobby, the pager off | Lobby, the quick sheet | Lobby, dark |
+| <img src="docs/screenshots/light/25-lobby.png" width="180" alt="Lobby"> | <img src="docs/screenshots/light/30-lobby-no-pager.png" width="180" alt="Lobby, the pager off"> | <img src="docs/screenshots/light/27-lobby-sheet.png" width="180" alt="Lobby, the quick sheet"> | <img src="docs/screenshots/dark/30-lobby-no-pager.png" width="180" alt="Lobby, the pager off, dark"> |
 
-All 24 screens, light and dark, are in [docs/screenshots](docs/screenshots). Playwright draws them from the production
+All 28 screens, light and dark, are in [docs/screenshots](docs/screenshots), numbered as in the Android app (the Lobby
+is 25, 26, 27 and 30; 28, 29 and 31 are Android's second Lobby, built with Android Views, which this app does not
+have). Playwright draws them from the production
 web build in Chromium at 360 × 780, in Material mode (the mode Android uses). **They show the web layer only**: what
 the app's web view draws. The system notification prompt, the status bar and iOS-mode styling are not in them.
 
@@ -57,7 +62,8 @@ npx cap sync
 cd android && ./gradlew assembleDebug
 ```
 
-The APK is `android/app/build/outputs/apk/debug/app-debug.apk`, debug-signed, about 4.4 MB.
+The APK is `android/app/build/outputs/apk/debug/app-debug.apk`, debug-signed, about 4.4 MB, version 1.1.0
+(versionCode 2).
 
 ```bash
 cd ios/App && xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
@@ -80,16 +86,19 @@ unsigned). Install it with `xcrun simctl install <udid> App.app`. Every [release
 
 ```bash
 npm run typecheck && npm run lint
-npm test          # Vitest: logic, the flows of scenarios 01–10, the tab rule, the id census
+npm test          # Vitest: logic, the flows of scenarios 01–10, the tab rule, the id census, the Lobby
 npm run build
-npm run e2e       # Playwright: every screen and every id in Chromium (light, dark) and WebKit; redraws docs/screenshots
+npm run e2e       # Playwright: every screen and every id in Chromium (light, dark) and WebKit; redraws docs/screenshots;
+                  # the Lobby's tree order, the injected swipe, and scenarios 12–19 on the Pages build
 ```
 
 `npm test` renders the app's real Ionic components in jsdom. It walks each scenario's steps and checks their texts.
 It also renders every screen in the state the spec names and finds every id from
 [nthcase/test-ids.json](nthcase/test-ids.json) there, and it checks that Gift cards has none. `npm run e2e` does the
 same against the production build in a real browser engine, the care guide's frame included, with real mouse and touch
-input. Playwright downloads its own browsers (`npx playwright install chromium webkit`).
+input. Playwright downloads its own browsers (`npx playwright install chromium webkit`). The Lobby's checks write what
+they saw to `build/lobby/` (not committed): the scrollables in tree order, the injected swipe's table, and notes from
+the Pages scenarios.
 
 ## Test it with NthCase
 
@@ -101,6 +110,10 @@ input. Playwright downloads its own browsers (`npx playwright install chromium w
 4. Create a scenario from one of the files in [nthcase/scenarios](nthcase/scenarios): its numbered lines are the
    steps, and each `Expect:` line is that step's check. Or record one: **Scenarios → New scenario → Record**.
 5. Compile it, and run it.
+
+To test it as a **web app**, give NthCase the address `https://unidotssoftwaresolutions.github.io/nthcase-sample-ionic/`
+and the same scenarios. In a browser the browser's Back does what Android's Back does (it closes the sheet or a panel,
+then goes back a screen; see [The Lobby](#the-lobby)), and `…/#item/7` stands in for the deep link.
 
 ## Test ids
 
@@ -151,6 +164,11 @@ What the **NATIVE** context shows, which this repository has not checked on a de
 | a screen with no test ids | Lab › Gift cards | 10 |
 | extract, startif / endif | the cart total; sign in only if asked | 03, 06 |
 | deep link | `nthcase-sample://item/7` | 11 |
+| scroll to an element, swipe, tap, longpress, doubletap, back | Lab › Lobby: the page, a row, the board, the pager, a tile, the quick sheet | 12–15 |
+| waitFor, notExists, a control that appears late | Lab › Lobby: the bar's Saved after 12 s or 3 s, with the pager on or off | 16, 17, 19 |
+
+Scenarios 18 and 20 are for the Lobby built a second time with a platform's classic toolkit, which only the Android and
+iOS apps have.
 
 The full table, with every check type and the known gaps, is in [SPEC.md §8](SPEC.md#8-verb-coverage).
 
@@ -166,7 +184,79 @@ The full table, with every check type and the known gaps, is in [SPEC.md §8](SP
   edge on iOS.
 - **In a browser** (for development and the Playwright checks), the address `…/#item/7` stands in for the deep link.
 
-### No network
+## The Lobby
+
+**Lab › Lobby** (spec 1.1) rebuilds the screen where NthCase's recovery scroll once acted as a touch on a game tile:
+a touch log that names every tap, long press and double tap, a promo pager and a Top 10 row above the page, and a bar
+whose **Saved** comes after a delay you choose. A scroll is never a touch, so a scenario that only scrolls must end with
+"Nothing touched".
+
+### Which scroller is which
+
+Every scroller is a CSS scroller, the browser's own.
+
+| Part | Element | Notes |
+| --- | --- | --- |
+| page (`lobby_page`) | `ion-content` | it scrolls the `div.inner-scroll` in its own shadow root; the id is on `ion-content` |
+| pager (`lobby_pager`) | `div`, `overflow-x: auto`, `scroll-snap-type: x mandatory`, one banner a page | above `ion-content`, outside the page; taken out of the DOM when **Show the pager** is off |
+| Top 10 row (`lobby_top_row`) | `div`, `overflow-x: auto` | between the pager and `ion-content`, outside the page |
+| chips, tile rows | `div`, `overflow-x: auto`; chips are `ion-chip` | inside the page |
+| grid | CSS grid, 2 × 6 | does not scroll |
+| inner list | `div`, `overflow-y: auto`, 240 px high | inside the page |
+| board | one `div`, `overflow: auto` both ways, 280 px square onto 26 × 26 cells of 56 px | one element that scrolls both ways |
+| bar | `ion-tab-bar` with `ion-tab-button`s | the Lobby's own bar; Saved is left out of the DOM until its delay has passed |
+| quick sheet | `ion-modal` with breakpoints (a sheet), a layer of its own | Back, a tap outside or a drag down closes it |
+| delay, switches | `ion-segment`, `ion-toggle` | |
+
+"Absent" always means out of the DOM, never `display: none`: in a WEBVIEW context a hidden element is still found.
+
+### A tile's touch
+
+The web has no long press of its own, and no double-tap time a page can read, so the Lobby takes the browser's `click`
+as its tap and adds two rules (`src/screens/Lobby.tsx`, `useTouchable`):
+
+- **Tap:** the browser's own `click`. The browser decides whether a touch was a tap: once it takes a moving finger for a
+  scroll it sends `pointercancel`, and no click follows.
+- **Long press:** starts on `pointerdown` and fires after **500 ms**, unless `pointerup` or `pointercancel` came first.
+  **Movement alone never cancels it.** This is the rule an Android View keeps: its long press survives a finger that
+  moves while it stays on the view, and ends only on up or when a parent takes the gesture (ACTION_CANCEL). The web's
+  `pointercancel` is that parent's decision: the browser sends it when it starts to scroll. 500 ms is Android's default
+  long-press time, and Compose's `combinedClickable` uses the platform's value too.
+- **Double tap:** a second click within **300 ms** (Android's default double-tap time). A tap is logged once 300 ms
+  have passed with no second click, so a double tap is one line.
+
+Every touchable element has `user-select: none`, `-webkit-touch-callout: none` and `touch-action: manipulation`, so the
+web view's text selection, callout and double-tap zoom stay out of it, and its context menu is turned off.
+
+**What a moving finger does here.** In Chromium (the engine of Android's web view), a finger that moves more than the
+browser's touch slop starts a scroll, even when nothing under it can scroll that way: the browser sends
+`pointercancel`, and neither the tap nor the long press happens. So a vertical swipe across the Top 10 row, the pager
+or a tile row touches nothing (e2e/lobby-swipe.spec.ts shows it with UiScrollable's own swipe). A finger that stays
+within the slop keeps its long press. That is what this platform does, not a rule the Lobby adds. What WKWebView does
+on an iPhone has not been checked here (Playwright cannot move a finger in WebKit).
+
+### The tree
+
+With the pager on, the scrollables come in this order, in the DOM (Chromium and WebKit) and in Chromium's
+accessibility tree, the tree Android's web view gives UiAutomator2: `lobby_pager`, `lobby_top_row`, the page's
+scroller (an unnamed node inside `lobby_page`), `lobby_chips`, `lobby_row_1`–`4`, `lobby_inner_list`, `lobby_board`.
+With the pager off, `lobby_top_row` is first, and no node of the pager is left. Saved is not in either tree before its
+delay. The document itself does not scroll. `e2e/lobby-tree.spec.ts` proves both; only a phone can show:
+
+- whether Android's WebView hands UiAutomator2 the HTML `id` as `resource-id` (it may, by version), and that it lists
+  the same nodes as `scrollable="true"`;
+- that the scrollable node of the page has no `resource-id` of its own: the id is on `ion-content`, its parent;
+- what XCUITest lists for WKWebView, where there are labels and no ids.
+
+### In a browser
+
+The Pages build is the same `dist/` as the apps. The browser's Back walks the app back: it closes the sheet or a
+panel, then goes back a screen, and the address changes each time (`#back-1`, `#back-2`, …). With nothing left to go
+back to, Back leaves the page. The board and the rows scroll with a mouse wheel turned sideways (or a trackpad), and
+with a finger; a vertical wheel over a row scrolls the page. The pager snaps to the banner nearest where the wheel left
+it.
+
+## No network
 
 The app makes no request. The web build is inside the app, and its Content-Security-Policy allows only the app's own
 files: scripts, styles, frames and requests. The care guide has its own policy that allows nothing remote. On Android
@@ -203,8 +293,9 @@ src/                 the app: App.tsx (shell, tabs, snackbar, Back), screens/, d
                      ui/ (shared parts), theme/, testIds.ts, platform.ts (Capacitor plugins)
 src/art/             art.generated.ts, made from art/ by scripts/convert-art.mjs
 public/              care-guide.html, the bundled page
-tests/               Vitest: logic, flows, ids, timings
-e2e/                 Playwright: the walk (screens, ids, screenshots) and real-input behaviour
+tests/               Vitest: logic, flows, ids, timings, the Lobby
+e2e/                 Playwright: the walk (screens, ids, screenshots), real-input behaviour, the Lobby's tree and
+                     injected swipe, and the Pages scenarios
 android/  ios/       the native projects, as Capacitor generates them, with Mossgrove's icon, scheme and versions
 scripts/             convert-art.mjs (art/ into the app and both platforms), ci-simulator-smoke.sh (CI only)
 art/                 the original icons, product drawings and launcher mark (SVG), unchanged
@@ -219,8 +310,10 @@ launch image from `art/`.
 
 A push to `main` or a pull request runs the fast checks, with no emulator and no simulator: on `ubuntu-latest`
 typecheck, lint, Vitest, the production build, Playwright in Chromium and WebKit (every screen, every id, the
-screenshots) and the debug APK; on `macos-latest` the zipped Simulator `.app`. The two jobs run side by side, in about 7
-minutes. A push that changes only `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE` or
+screenshots, the Lobby, the Pages build at `/nthcase-sample-ionic/`) and the debug APK; on `macos-latest` the zipped
+Simulator `.app`. The two jobs run side by side, in about 10 minutes. On a push to `main` (or "Run workflow" on
+`main`), once every check is green, the web build is deployed to GitHub Pages; the repository's Pages source must be
+set to **GitHub Actions** once, in Settings → Pages. A push that changes only `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE` or
 `docs/screenshots/` starts nothing. The device suite (the `.app` installed and opened on an iOS 26 simulator, with the
 deep link, about 10 minutes more) runs on "Run workflow", at 03:17 UTC on the 1st of each month, and before every release: a `v*`
 tag publishes only when the fast checks and the suite are green. To start the suite by hand, open Actions → build →

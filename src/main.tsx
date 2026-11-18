@@ -10,6 +10,7 @@ import '@ionic/react/css/typography.css';
 import '@ionic/react/css/padding.css';
 import './theme/variables.css';
 import './theme/app.css';
+import './theme/lobby.css';
 
 // The mode follows the platform: iOS styling on iOS, Material on Android (and in a desktop browser). Android's system
 // Back is handled by the app (App.tsx), so Ionic's own handler is off.

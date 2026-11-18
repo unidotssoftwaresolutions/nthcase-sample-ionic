@@ -1,26 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 import { join } from 'node:path';
-import { guard, idsOnScreen, presented, signIn, specIds, templateOf } from './support';
+import { guard, idsOnScreen, NOT_IN_THIS_APP, presented, signIn, specIds, templateOf } from './support';
 
 /**
- * Walks every screen of the production build in Chromium, in the order round one drew them, and saves the 24
- * screenshots under round one's names into docs/screenshots/<light|dark>/. Along the way it collects every id in the
+ * Walks every screen of the production build in Chromium, in the order round one drew them, and saves the 28
+ * screenshots under the Android app's names into docs/screenshots/<light|dark>/ (01–24, and the Lobby's 25, 26, 27 and
+ * 30; 28, 29 and 31 are the Android Views Lobby, which this app does not have). Along the way it collects every id in the
  * real DOM (the care guide's frame included) and checks the whole list was reached.
  *
  * These pictures show the web layer: what the app's web view draws. The system notification prompt, the status bar
  * and anything else the phone draws are not in them.
  */
 test('@screens every screen, every id, in the real DOM', async ({ page }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   const problems = await guard(page);
   const seen = new Set<string>();
   const look = async () => (await idsOnScreen(page)).forEach((id) => seen.add(id));
   // Pictures come from the Chromium runs, light and dark; the WebKit run walks the same screens without them.
   const pictures = info.project.name === 'light' || info.project.name === 'dark';
-  const shot = async (name: string) => {
+  // `animations: 'disabled'` fast-forwards or cancels the page's Web Animations; Ionic's sheet modal keeps its place
+  // in its open animation, so the quick sheet is drawn with animations allowed (it has finished opening by then)
+  const shot = async (name: string, animations: 'disabled' | 'allow' = 'disabled') => {
     await page.waitForTimeout(350);
     await look();
-    if (pictures) await page.screenshot({ path: join(import.meta.dirname, '..', 'docs/screenshots', info.project.name, `${name}.png`), animations: 'disabled' });
+    if (pictures) await page.screenshot({ path: join(import.meta.dirname, '..', 'docs/screenshots', info.project.name, `${name}.png`), animations });
   };
 
   await page.goto('/');
@@ -164,6 +167,46 @@ test('@screens every screen, every id, in the real DOM', async ({ page }, info) 
   await shot('21-gift-cards');
   await page.click('[aria-label="Back"]');
 
+  // The Lobby (spec 1.1): every scroller and what it holds is in the DOM at once
+  await page.click('#lab_lobby');
+  await expect(page.locator('#lobby_touch_log')).toHaveText('Nothing touched');
+  await expect(page.locator('#lobby_pager_position')).toHaveAttribute('aria-label', 'Banner 1 of 5');
+  await shot('25-lobby');
+  // the board, one cell tapped
+  await page.locator('#lobby_board_position').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  await page.click('#lobby_board_cell_c3');
+  await expect(page.locator('#lobby_touch_log')).toHaveText('Tapped: C3 (board)');
+  await shot('26-lobby-board');
+  // the quick sheet, from a long press on a Top 10 tile (the mouse held 700 ms)
+  await page.locator('#lobby_page').evaluate((el: HTMLIonContentElement) => el.scrollToTop());
+  const tile = (await page.locator('#lobby_top_row_tile_2').boundingBox())!;
+  await page.mouse.move(tile.x + tile.width / 2, tile.y + 30);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await presented(page, 'ion-modal.mg-lobby-sheet');
+  await expect(page.locator('#lobby_sheet_title')).toHaveText('Pocket Notebook');
+  await shot('27-lobby-sheet', 'allow');
+  await page.click('#lobby_sheet_open');
+  await expect(page.locator('#lobby_detail')).toContainText('Top 10, tile 2');
+  await look();
+  await page.click('#lobby_detail_back');
+  await page.click('#lobby_banner_1');
+  await expect(page.locator('#lobby_promo')).toContainText('Banner 1 of 5');
+  await look();
+  await page.click('#lobby_promo_back');
+  await page.click('#lobby_bar_saved');
+  await expect(page.locator('#lobby_saved_screen')).toHaveText('Saved: nothing yet');
+  await look();
+  await page.click('#lobby_bar_home');
+  // the pager off: the Top 10 row in its place
+  await page.click('#lobby_touch_reset');
+  await page.click('#lobby_pager_shown');
+  await expect(page.locator('#lobby_pager')).toHaveCount(0);
+  await shot('30-lobby-no-pager');
+  await page.click('#lobby_pager_shown');
+  await page.click('#top_bar_back');
+
   await page.click('#nav_settings');
   await expect(page.locator('#settings_notifications_status')).toHaveText('Not allowed. Turn this on to be asked.');
   await page.locator('#settings_screen ion-content').evaluate((el: HTMLIonContentElement) => el.scrollToTop());
@@ -180,9 +223,10 @@ test('@screens every screen, every id, in the real DOM', async ({ page }, info) 
   await shot('24-deep-link-unknown');
 
   // The whole list was reached, every concrete form of every template included.
-  const missing = specIds.filter((t) => ![...seen].some((id) => templateOf(id) === t));
+  const missing = specIds.filter((t) => !NOT_IN_THIS_APP.includes(t) && ![...seen].some((id) => templateOf(id) === t));
   expect(missing, 'ids never seen in the real DOM').toEqual([]);
   for (let n = 1; n <= 40; n++) expect(seen.has(`shop_item_${n}`), `shop_item_${n}`).toBe(true);
+  expect([...seen].filter((id) => id.startsWith('lobby_'))).toHaveLength(872);
   expect(problems).toEqual([]);
 });
 

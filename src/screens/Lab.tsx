@@ -11,6 +11,7 @@ const BENCHES: { id: string; route: Route; title: string; body: string }[] = [
   { id: T.labSlow, route: { name: 'slow' }, title: 'Delivery slots', body: 'Loads for 3 seconds, then shows its content' },
   { id: T.labOrders, route: { name: 'orders' }, title: 'Orders', body: 'An empty state, and an error state with retry' },
   { id: T.labGiftCards, route: { name: 'giftcards' }, title: 'Gift cards', body: 'No test ids at all: find things by their text' },
+  { id: T.labLobby, route: { name: 'lobby' }, title: 'Lobby', body: 'A pager, rows, a grid, a list in the list, a board and a late bar item, with a touch log' },
 ];
 
 /** The Lab: Mossgrove's second cabinet, one drawer per test bench. It says plainly what each one is for. */

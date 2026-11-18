@@ -5,6 +5,9 @@
 #                                     job side by side)
 #   "Run workflow", the 1st monthly  the fast checks and the device suite: the .app on an iOS 26 simulator (about
 #                                     10 minutes more in the macos job)
+#   a push to main, "Run workflow"   then, once every check is green, the web build goes to GitHub Pages, at
+#     on main                         https://<owner>.github.io/nthcase-sample-ionic/, so NthCase can test the app as a
+#                                     web app too. Only the deploying job may write to Pages.
 #
 # A push or a pull request that changes only the files below starts nothing: no test, no build step and no script reads
 # them (Playwright writes docs/screenshots/, and nothing reads it). SPEC.md, nthcase/ and art/ are NOT here: the tests,
@@ -50,3 +53,47 @@ jobs:
     with:
       version: build-${{ github.run_number }}
       devices: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+
+  # The production web build (the same dist/ the apps carry; its asset paths are relative, so it loads from
+  # /nthcase-sample-ionic/ as it does from the apps), packed as a Pages artifact. Reads only.
+  pages-build:
+    needs: ci
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+      - timeout-minutes: 10
+        run: npm ci
+      - timeout-minutes: 5
+        run: npm run build
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        timeout-minutes: 5
+        with:
+          path: dist/
+
+  # Publishes that artifact. The one job with `pages: write` (and the `id-token: write` Pages asks for, to prove the
+  # deployment comes from this repository's run). One deployment at a time, never cancelled halfway.
+  pages:
+    needs: pages-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        timeout-minutes: 5

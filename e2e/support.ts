@@ -5,9 +5,19 @@ import { join } from 'node:path';
 const root = join(import.meta.dirname, '..');
 export const specIds: string[] = (JSON.parse(readFileSync(join(root, 'nthcase/test-ids.json'), 'utf8')) as { ids: { id: string }[] }).ids.map((e) => e.id);
 
-/** The JSON id a concrete id belongs to ("shop_item_7" → "shop_item_{id}"). */
+/** Built only by the apps that build the Lobby twice, Android and iOS (SPEC.md §7). */
+export const NOT_IN_THIS_APP = ['lab_lobby_views'];
+
+/** The JSON id a concrete id belongs to ("shop_item_7" → "shop_item_{id}", "lobby_board_cell_m18" → "…_{col}{row}"). */
 export function templateOf(id: string): string | undefined {
-  return specIds.find((t) => t === id || new RegExp(`^${t.replace(/\{(id|n)\}/, '\\d+').replace('{key}', '(kitchen|desk|garden|home)')}$`).test(id));
+  return specIds.find((t) => {
+    if (t === id) return true;
+    const source = t
+      .replace('{col}{row}', '[a-z](?:[1-9]|1\\d|2[0-6])')
+      .replace(/\{(id|n|m|s)\}/g, '\\d+')
+      .replace('{key}', '(kitchen|desk|garden|home)');
+    return new RegExp(`^${source}$`).test(id);
+  });
 }
 
 /**
@@ -23,7 +33,7 @@ export async function guard(page: Page): Promise<string[]> {
   });
   page.on('request', (request) => {
     const url = request.url();
-    if (!/^(http:\/\/localhost:4173\/|data:|about:|blob:)/.test(url)) problems.push(`request left the app: ${url}`);
+    if (!/^(http:\/\/localhost:417[34]\/|data:|about:|blob:)/.test(url)) problems.push(`request left the app: ${url}`);
   });
   page.on('console', (message) => {
     if (message.type() === 'error') problems.push(`console error: ${message.text()}`);
@@ -62,6 +72,18 @@ export async function presented(page: Page, selector: string): Promise<void> {
   await expect(page.locator(selector).first()).not.toHaveClass(/overlay-hidden/);
   await page.waitForTimeout(450); // the opening animation
 }
+
+/** Signs in, opens the Lab tab and its Lobby row (scenario steps 1 and 2). */
+export async function openLobby(page: Page, at = '/'): Promise<void> {
+  await page.goto(at);
+  await signIn(page);
+  await page.click('#nav_lab');
+  await page.click('#lab_lobby');
+  await expect(page.locator('#lobby_touch_log')).toHaveText('Nothing touched');
+}
+
+/** Where the Lobby's evidence files go: build/lobby/, beside the app, never committed. */
+export const evidenceDir = join(root, 'build', 'lobby');
 
 export async function signIn(page: Page): Promise<void> {
   await page.click('#signin_use_test_account');

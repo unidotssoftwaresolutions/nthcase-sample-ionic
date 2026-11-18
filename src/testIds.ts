@@ -3,10 +3,25 @@ function templated(template: string): ((value: number | string) => string) & { t
   return Object.assign((value: number | string) => template.replace(/\{\w+\}/, String(value)), { template });
 }
 
+/** A template with two placeholders ("lobby_row_{n}_tile_{m}"), filled in order. */
+function templated2(template: string): ((a: number | string, b: number | string) => string) & { template: string } {
+  return Object.assign(
+    (a: number | string, b: number | string) => template.replace(/\{\w+\}/, String(a)).replace(/\{\w+\}/, String(b)),
+    { template },
+  );
+}
+
+/** A board cell's id: the column letter in lower case, then the row number ("lobby_board_cell_m18"). */
+const boardCell = Object.assign(
+  (col: number, row: number) => `lobby_board_cell_${String.fromCharCode(96 + col)}${row}`,
+  { template: 'lobby_board_cell_{col}{row}' },
+);
+
 /**
  * Every test id of the app, from nthcase/test-ids.json (SPEC.md §7). Each one is the HTML `id` and `data-testid` of
  * the element a person acts on, so Appium finds it in the WEBVIEW context as `#shop_search` or `[data-testid=…]`.
  * The care guide's `web_*` ids live in public/care-guide.html, not here. The Gift cards screen has none, by design.
+ * `lab_lobby_views` is not here either: only Android and iOS build the Lobby twice (SPEC.md §7).
  */
 export const T = {
   navShop: 'nav_shop',
@@ -78,6 +93,52 @@ export const T = {
   labSlow: 'lab_slow',
   labOrders: 'lab_orders',
   labGiftCards: 'lab_gift_cards',
+  labLobby: 'lab_lobby',
+
+  lobbyScreen: 'lobby_screen',
+  lobbyTouchLog: 'lobby_touch_log',
+  lobbyTouchCount: 'lobby_touch_count',
+  lobbyTouchReset: 'lobby_touch_reset',
+  lobbySavedDelay: 'lobby_saved_delay',
+  lobbySavedDelayChoice: templated('lobby_saved_delay_{s}'),
+  lobbyPagerShown: 'lobby_pager_shown',
+  lobbyPager: 'lobby_pager',
+  lobbyBanner: templated('lobby_banner_{n}'),
+  lobbyPagerPosition: 'lobby_pager_position',
+  lobbyPagerAuto: 'lobby_pager_auto',
+  lobbyTopRowPosition: 'lobby_top_row_position',
+  lobbyTopRow: 'lobby_top_row',
+  lobbyTopRowTile: templated('lobby_top_row_tile_{m}'),
+  lobbyPage: 'lobby_page',
+  lobbyChips: 'lobby_chips',
+  lobbyChip: templated('lobby_chip_{n}'),
+  lobbyRow: templated('lobby_row_{n}'),
+  lobbyRowPosition: templated('lobby_row_{n}_position'),
+  lobbyRowTile: templated2('lobby_row_{n}_tile_{m}'),
+  lobbyGrid: 'lobby_grid',
+  lobbyGridCell: templated('lobby_grid_cell_{n}'),
+  lobbyInnerList: 'lobby_inner_list',
+  lobbyInnerRow: templated('lobby_inner_row_{n}'),
+  lobbyBoard: 'lobby_board',
+  lobbyBoardPosition: 'lobby_board_position',
+  lobbyBoardCell: boardCell,
+  lobbyFooter: 'lobby_footer',
+  lobbyBar: 'lobby_bar',
+  lobbyBarHome: 'lobby_bar_home',
+  lobbyBarLive: 'lobby_bar_live',
+  lobbyBarSaved: 'lobby_bar_saved',
+  lobbyBarOffers: 'lobby_bar_offers',
+  lobbySavedScreen: 'lobby_saved_screen',
+  lobbyDetail: 'lobby_detail',
+  lobbyDetailBack: 'lobby_detail_back',
+  lobbyPromo: 'lobby_promo',
+  lobbyPromoBack: 'lobby_promo_back',
+  lobbySheet: 'lobby_sheet',
+  lobbySheetTitle: 'lobby_sheet_title',
+  lobbySheetOpen: 'lobby_sheet_open',
+  lobbySheetPreview: 'lobby_sheet_preview',
+  lobbySheetSaved: 'lobby_sheet_saved',
+  lobbySheetRate: 'lobby_sheet_rate',
 
   formScreen: 'form_screen',
   formName: 'form_name',

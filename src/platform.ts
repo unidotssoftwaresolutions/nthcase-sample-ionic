@@ -20,6 +20,8 @@ export interface Platform {
   onUrlOpen(handler: (url: string) => void): () => void;
   /** Android's system Back. */
   onBackButton(handler: () => void): () => void;
+  /** In a plain browser (the GitHub Pages build) the browser's own Back stands in for the system's. */
+  usesBrowserHistory(): boolean;
   exitApp(): void;
   /** Accelerometer readings including gravity, in m/s². */
   onAcceleration(handler: (x: number, y: number, z: number, timestampMs: number) => void): () => void;
@@ -66,6 +68,9 @@ const capacitor: Platform = {
   onBackButton(handler) {
     if (Capacitor.getPlatform() !== 'android') return () => {};
     return listen(() => App.addListener('backButton', () => handler()));
+  },
+  usesBrowserHistory() {
+    return !Capacitor.isNativePlatform();
   },
   exitApp() {
     void App.exitApp();

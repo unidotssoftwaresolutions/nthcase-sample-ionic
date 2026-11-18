@@ -7,7 +7,8 @@
 #   (`devices: true`)                 opened, a screenshot of each
 #
 # Playwright runs in browsers, not on an emulator or a simulator, so it stays in the fast checks: it is this app's id
-# walk and its screenshots, in about 4 minutes on ubuntu. This app has no Android emulator job.
+# walk and its screenshots, the Lobby's tree order and injected swipe (build/lobby/), and the GitHub Pages build played
+# through scenarios 12–19 at /nthcase-sample-ionic/, in about 7 minutes on ubuntu. This app has no Android emulator job.
 #
 # build.yml asks for the device suite on "Run workflow" and on the monthly schedule; release.yml always does. On a push
 # or a pull request the simulator step is skipped: no simulator boots.
@@ -60,10 +61,11 @@ jobs:
       - timeout-minutes: 5
         run: npm run build
       # The production build in Playwright's own browsers: Chromium light and dark (every screen, every id, the
-      # screenshots) and WebKit, the engine of iOS's web view (every screen, every id).
+      # screenshots, the Lobby), WebKit, the engine of iOS's web view (every screen, every id, the Lobby's DOM order),
+      # and the same build under /nthcase-sample-ionic/ as GitHub Pages serves it.
       - timeout-minutes: 10
         run: npx playwright install --with-deps chromium webkit
-      - timeout-minutes: 15
+      - timeout-minutes: 20
         run: npm run e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
@@ -80,6 +82,15 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      # What the Lobby's checks saw: the scrollables in tree order, the injected swipe, the Pages scenarios
+      - if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lobby-evidence
+          path: build/lobby/
+          if-no-files-found: warn
+          retention-days: 14
       # The web build goes into the app: no server, no live reload.
       - timeout-minutes: 5
         run: npx cap sync android

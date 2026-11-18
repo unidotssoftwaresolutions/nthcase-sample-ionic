@@ -8,7 +8,7 @@ export type Route =
   | { name: 'signin' }
   | { name: Tab }
   | { name: 'item'; id: string }
-  | { name: 'form' | 'gestures' | 'webview' | 'slow' | 'orders' | 'giftcards' };
+  | { name: 'form' | 'gestures' | 'webview' | 'slow' | 'orders' | 'giftcards' | 'lobby' };
 
 /** One screen on the back stack. Its key is stable for as long as it stays on the stack. */
 export interface Entry {
@@ -49,6 +49,10 @@ export interface AppState {
   /** Settings › Notifications: post an "order placed" notification when allowed. */
   orderUpdates: boolean;
   themeMode: ThemeMode;
+  /** The Lobby's "Saved appears after", in seconds (SPEC.md §5): kept until the app closes; a cold start is 0. */
+  lobbySavedDelay: number;
+  /** The Lobby's "Show the pager": kept until the app closes; a cold start shows the pager. */
+  lobbyPagerShown: boolean;
   /** A deep link that arrived before sign-in; opened right after it. */
   pendingItemId: string | null;
   stack: Entry[];
@@ -76,6 +80,8 @@ function coldStart(): AppState {
     failFirstLoad: false,
     orderUpdates: false,
     themeMode: 'system',
+    lobbySavedDelay: 0,
+    lobbyPagerShown: true,
     pendingItemId: null,
     stack: [entry({ name: 'signin' })],
     snack: null,
@@ -250,6 +256,16 @@ export function resetData(): void {
 
 export function setSetting(patch: Partial<Pick<AppState, 'slowLoading' | 'failFirstLoad' | 'orderUpdates' | 'themeMode'>>): void {
   set(patch);
+}
+
+/* The Lobby's two choices, kept in memory until the app closes. Neither is a touch the Lobby's log counts. */
+
+export function setLobbySavedDelay(seconds: number): void {
+  set({ lobbySavedDelay: seconds });
+}
+
+export function setLobbyPagerShown(shown: boolean): void {
+  set({ lobbyPagerShown: shown });
 }
 
 /* The snackbar: one at a time, 10 s each (SPEC.md §5). */

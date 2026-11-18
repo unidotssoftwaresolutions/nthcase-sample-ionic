@@ -4,10 +4,12 @@ dist/
 *.tsbuildinfo
 .vite/
 
-# Test output (Playwright's report and failure traces; the screenshots in docs/ are kept)
+# Test output (Playwright's report and failure traces, the Lobby's evidence in build/lobby/; the screenshots in docs/
+# are kept)
 test-results/
 playwright-report/
 coverage/
+/build/
 
 # Native build output and local SDK paths (android/ and ios/ also carry Capacitor's own .gitignore)
 android/.gradle/

@@ -6,8 +6,8 @@ import { T, tid } from '../testIds';
 import { registerOverlay } from '../ui/overlays';
 import { Screen, TopBar } from '../ui/parts';
 
-export const APP_VERSION = '1.0.0';
-export const SPEC_VERSION = '1.0';
+export const APP_VERSION = '1.1.0';
+export const SPEC_VERSION = '1.1';
 
 export const NOTIFICATIONS_NOT_ALLOWED = 'Not allowed. Turn this on to be asked.';
 export const NOTIFICATIONS_OFF = 'Off';

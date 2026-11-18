@@ -1,8 +1,8 @@
 {
   "name": "nthcase-sample-ionic",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Mossgrove: an NthCase sample app in Ionic React + Capacitor (spec 1.0)",
+  "description": "Mossgrove: an NthCase sample app in Ionic React + Capacitor (spec 1.1)",
   "license": "Apache-2.0",
   "type": "module",
   "engines": {

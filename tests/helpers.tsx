@@ -79,10 +79,13 @@ export function pause(ms: number): Promise<void> {
 }
 
 /** Waits until an Ionic overlay is on screen: its buttons exist a moment before it is presented, and ignore taps. */
-export async function presented(tag: 'ion-action-sheet' | 'ion-alert' | 'ion-modal'): Promise<void> {
-  await waitFor(() => {
-    const overlay = document.querySelector(tag);
-    expect(overlay, `${tag} should be presented`).not.toBeNull();
-    expect(overlay!.classList.contains('overlay-hidden'), `${tag} should be presented`).toBe(false);
-  });
+export async function presented(tag: 'ion-action-sheet' | 'ion-alert' | 'ion-modal' | 'ion-modal.mg-lobby-sheet', timeout = 1000): Promise<void> {
+  await waitFor(
+    () => {
+      const overlay = document.querySelector(tag);
+      expect(overlay, `${tag} should be presented`).not.toBeNull();
+      expect(overlay!.classList.contains('overlay-hidden'), `${tag} should be presented`).toBe(false);
+    },
+    { timeout },
+  );
 }
