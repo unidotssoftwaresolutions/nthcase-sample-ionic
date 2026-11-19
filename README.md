@@ -309,9 +309,10 @@ launch image from `art/`.
 ## CI
 
 A push to `main` or a pull request runs the fast checks, with no emulator and no simulator: on `ubuntu-latest`
-typecheck, lint, Vitest, the production build, Playwright in Chromium and WebKit (every screen, every id, the
-screenshots, the Lobby, the Pages build at `/nthcase-sample-ionic/`) and the debug APK; on `macos-latest` the zipped
-Simulator `.app`. The two jobs run side by side, in about 10 minutes. On a push to `main` (or "Run workflow" on
+typecheck, lint, Vitest, the production build and the debug APK; Playwright in Chromium and WebKit (every screen,
+every id, the screenshots, the Lobby, the Pages build at `/nthcase-sample-ionic/`) in a job of its own, in
+Microsoft's Playwright image for the `@playwright/test` version in `package-lock.json` (CI fails when the two differ);
+on `macos-latest` the zipped Simulator `.app`. The three jobs run side by side, in about 10 minutes. On a push to `main` (or "Run workflow" on
 `main`), once every check is green, the web build is deployed to GitHub Pages; the repository's Pages source must be
 set to **GitHub Actions** once, in Settings → Pages. A push that changes only `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE` or
 `docs/screenshots/` starts nothing. The device suite (the zipped `.app` installed and opened on an iOS 26 simulator,

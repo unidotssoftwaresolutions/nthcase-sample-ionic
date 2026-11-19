@@ -1,7 +1,9 @@
 # Every check. build.yml and release.yml call this workflow; it never runs on its own.
 #
-#   the fast checks, on every run     web-and-android: typecheck, lint, Vitest, the production build, Playwright in
-#                                     Chromium (light, dark) and WebKit, the debug APK (ubuntu)
+#   the fast checks, on every run     web-and-android: typecheck, lint, Vitest, the production build, the debug APK
+#                                     (ubuntu)
+#                                     e2e: Playwright in Chromium (light, dark) and WebKit, in Microsoft's Playwright
+#                                     image (ubuntu)
 #                                     ios-simulator: the Simulator .app, zipped (macos: only a Mac builds for the iOS
 #                                     Simulator)
 #   the device suite, when asked      ios-simulator-smoke: the zipped .app installed and opened on an iOS 26 simulator,
@@ -11,17 +13,22 @@
 #
 # Playwright runs in browsers, not on an emulator or a simulator, so it stays in the fast checks: it is this app's id
 # walk and its screenshots, the Lobby's tree order and injected swipe (build/lobby/), and the GitHub Pages build played
-# through scenarios 12–19 at /nthcase-sample-ionic/, in about 7 minutes on ubuntu. This app has no Android emulator job.
+# through scenarios 12–19 at /nthcase-sample-ionic/, in about 5 minutes on ubuntu. This app has no Android emulator job.
+#
+# It runs in a job of its own, in Microsoft's Playwright image, which already holds the browsers and every system
+# package they need. Installing them on the runner downloaded about 240 MB from public mirrors on every run (185 apt
+# packages, then the two browsers), and on 2026-11-19 a slow Ubuntu mirror made apt alone use up the step's 10 minutes,
+# twice, on a correct build. The image's tag is the @playwright/test version in package-lock.json, and
+# scripts/check-playwright-image.mjs fails the run when they differ.
 #
 # build.yml asks for the device suite on "Run workflow" and on the monthly schedule; release.yml always does. On a push
 # or a pull request the simulator job is skipped: no simulator boots.
 #
 # Each job is one part that can fail on its own, so "Re-run failed jobs" re-runs only what failed (and the summary).
 # The simulator check is a job of its own on the zip ios-simulator built: it builds nothing. web-and-android stays one
-# job: its checks take under a minute each but Playwright (about 5), they all start from the same npm install and the
-# same production build, and the whole job takes about 7 minutes, so a split would save a minute or two on a re-run.
-# Within it, each check runs whatever another found, and the summary lists each. There are no retries anywhere: a flaky
-# check is re-run by a person.
+# job: its checks take under a minute each, and they all start from the same npm install and the same production build.
+# Within a job, each check runs whatever another found, and the summary lists each. There are no retries anywhere: a
+# flaky check is re-run by a person.
 #
 # Cached, under keys made of what they hold: npm's downloads (actions/setup-node, package-lock.json), Gradle's folders
 # (gradle/actions/setup-gradle's own keys) and Swift Package Manager's checkout of capacitor-swift-pm (the project's
@@ -56,7 +63,6 @@ jobs:
       lint: ${{ steps.lint.outcome }}
       vitest: ${{ steps.vitest.outcome }}
       web: ${{ steps.web.outcome }}
-      e2e: ${{ steps.e2e.outcome }}
       wrapper: ${{ steps.wrapper.outcome }}
       apk: ${{ steps.apk.outcome }}
     steps:
@@ -88,42 +94,6 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         timeout-minutes: 5
         run: npm run build
-      # The production build in Playwright's own browsers: Chromium light and dark (every screen, every id, the
-      # screenshots, the Lobby), WebKit, the engine of iOS's web view (every screen, every id, the Lobby's DOM order),
-      # and the same build under /nthcase-sample-ionic/ as GitHub Pages serves it.
-      - id: browsers
-        if: ${{ !cancelled() && steps.web.outcome == 'success' }}
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium webkit
-      - id: e2e
-        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
-        timeout-minutes: 20
-        run: npm run e2e
-      - if: ${{ !cancelled() && steps.e2e.outcome == 'success' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        timeout-minutes: 5
-        with:
-          name: screenshots
-          path: docs/screenshots/
-          retention-days: 14
-      - if: ${{ !cancelled() && steps.e2e.outcome == 'failure' }}
-        timeout-minutes: 5
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
-      # What the Lobby's checks saw: the scrollables in tree order, the injected swipe, the Pages scenarios
-      - if: always()
-        timeout-minutes: 5
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: lobby-evidence
-          path: build/lobby/
-          if-no-files-found: warn
-          retention-days: 14
       # The web build goes into the app: no server, no live reload.
       - id: sync
         if: ${{ !cancelled() && steps.web.outcome == 'success' }}
@@ -166,6 +136,78 @@ jobs:
           name: mossgrove-ionic-apk
           path: dist-release/mossgrove-ionic-${{ inputs.version }}-debug.apk
           if-no-files-found: error
+          retention-days: 14
+
+  # The production build in Playwright's own browsers: Chromium light and dark (every screen, every id, the
+  # screenshots, the Lobby), WebKit, the engine of iOS's web view (every screen, every id, the Lobby's DOM order), and
+  # the same build under /nthcase-sample-ionic/ as GitHub Pages serves it. No `playwright install` and no apt: the image
+  # has both. The job installs and builds for itself instead of waiting for web-and-android's dist/: Playwright and Vite
+  # need the npm install anyway, the build takes seconds on top of it, and so the job starts with the others.
+  e2e:
+    runs-on: ubuntu-latest
+    # e2e had 20 minutes as a step and takes about 5; the other 10 cover pulling the image (about 1 GB), npm ci and the
+    # build.
+    timeout-minutes: 30
+    container:
+      # Ubuntu 26.04 (resolute), the release of the runner image e2e ran on before. The tag must be the @playwright/test
+      # version in package-lock.json: the check below fails otherwise. Update the tag, the digest and the lock together.
+      image: mcr.microsoft.com/playwright@sha256:f76885029244e5a384243a930ff283cef67d90653978ee27a77dd4cff8882fb4 # v1.64.1-resolute
+      # The runner's own user, so the checkout and what the tests write stay the runner's (Playwright's GitHub Actions
+      # example does the same); the host's shared memory, which Chromium needs (Playwright's Docker page).
+      options: --user 1001 --ipc=host
+    outputs:
+      image: ${{ steps.image.outcome }}
+      e2e: ${{ steps.e2e.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+      - id: image
+        timeout-minutes: 2
+        run: node scripts/check-playwright-image.mjs
+      # each step runs whatever the image check found, as long as what it needs worked
+      - id: node
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+      - id: install
+        if: ${{ !cancelled() && steps.node.outcome == 'success' }}
+        timeout-minutes: 10
+        run: npm ci
+      - id: web
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
+        run: npm run build
+      - id: e2e
+        if: ${{ !cancelled() && steps.web.outcome == 'success' }}
+        timeout-minutes: 20
+        run: npm run e2e
+      - if: ${{ !cancelled() && steps.e2e.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        timeout-minutes: 5
+        with:
+          name: screenshots
+          path: docs/screenshots/
+          retention-days: 14
+      - if: ${{ !cancelled() && steps.e2e.outcome == 'failure' }}
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      # What the Lobby's checks saw: the scrollables in tree order, the injected swipe, the Pages scenarios
+      - if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: lobby-evidence
+          path: build/lobby/
+          if-no-files-found: warn
           retention-days: 14
 
   ios-simulator:
@@ -256,7 +298,7 @@ jobs:
   # cancelled; build.yml's Pages deploy and release.yml's github-release need this workflow, so they wait for it.
   summary:
     name: Every check
-    needs: [web-and-android, ios-simulator, ios-simulator-smoke]
+    needs: [web-and-android, e2e, ios-simulator, ios-simulator-smoke]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -268,14 +310,16 @@ jobs:
           CHECK_2: "Lint|${{ needs.web-and-android.outputs.lint || needs.web-and-android.result }}"
           CHECK_3: "Vitest|${{ needs.web-and-android.outputs.vitest || needs.web-and-android.result }}"
           CHECK_4: "The production build|${{ needs.web-and-android.outputs.web || needs.web-and-android.result }}"
-          CHECK_5: "Playwright, Chromium and WebKit|${{ needs.web-and-android.outputs.e2e || needs.web-and-android.result }}"
-          CHECK_6: "Gradle wrapper validation|${{ needs.web-and-android.outputs.wrapper || needs.web-and-android.result }}"
-          CHECK_7: "The debug APK|${{ needs.web-and-android.outputs.apk || needs.web-and-android.result }}"
-          CHECK_8: "The Simulator .app, zipped|${{ needs.ios-simulator.outputs.app || needs.ios-simulator.result }}"
-          CHECK_9: "The .app on an iOS 26 simulator|${{ needs.ios-simulator-smoke.outputs.smoke || needs.ios-simulator-smoke.result }}"
+          CHECK_5: "The Playwright image matches package-lock.json|${{ needs.e2e.outputs.image || needs.e2e.result }}"
+          CHECK_6: "Playwright, Chromium and WebKit|${{ needs.e2e.outputs.e2e || needs.e2e.result }}"
+          CHECK_7: "Gradle wrapper validation|${{ needs.web-and-android.outputs.wrapper || needs.web-and-android.result }}"
+          CHECK_8: "The debug APK|${{ needs.web-and-android.outputs.apk || needs.web-and-android.result }}"
+          CHECK_9: "The Simulator .app, zipped|${{ needs.ios-simulator.outputs.app || needs.ios-simulator.result }}"
+          CHECK_10: "The .app on an iOS 26 simulator|${{ needs.ios-simulator-smoke.outputs.smoke || needs.ios-simulator-smoke.result }}"
           JOB_1: "web-and-android|${{ needs.web-and-android.result }}"
-          JOB_2: "ios-simulator|${{ needs.ios-simulator.result }}"
-          JOB_3: "ios-simulator-smoke|${{ needs.ios-simulator-smoke.result }}"
+          JOB_2: "e2e|${{ needs.e2e.result }}"
+          JOB_3: "ios-simulator|${{ needs.ios-simulator.result }}"
+          JOB_4: "ios-simulator-smoke|${{ needs.ios-simulator-smoke.result }}"
         run: |
           python3 - <<'EOF'
           import os, sys

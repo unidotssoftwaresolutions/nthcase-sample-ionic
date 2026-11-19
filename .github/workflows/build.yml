@@ -1,8 +1,8 @@
 # When CI runs, and how much of it. The jobs themselves are in ci.yml, which release.yml calls too.
 #
 #   a push to main, a pull request    the fast checks only: typecheck, lint, Vitest, Playwright in Chromium and WebKit,
-#                                     the APK and the zipped Simulator .app (about 7 minutes; one ubuntu and one macos
-#                                     job side by side)
+#                                     the APK and the zipped Simulator .app (about 7 minutes; two ubuntu jobs and one
+#                                     macos job side by side)
 #   "Run workflow", the 1st monthly  the fast checks and the device suite: the .app on an iOS 26 simulator (about
 #                                     10 minutes more in the macos job)
 #   a push to main, "Run workflow"   then, once every check is green, the web build goes to GitHub Pages, at
