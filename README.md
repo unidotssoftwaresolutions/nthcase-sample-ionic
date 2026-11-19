@@ -314,11 +314,12 @@ screenshots, the Lobby, the Pages build at `/nthcase-sample-ionic/`) and the deb
 Simulator `.app`. The two jobs run side by side, in about 10 minutes. On a push to `main` (or "Run workflow" on
 `main`), once every check is green, the web build is deployed to GitHub Pages; the repository's Pages source must be
 set to **GitHub Actions** once, in Settings → Pages. A push that changes only `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`, `NOTICE` or
-`docs/screenshots/` starts nothing. The device suite (the `.app` installed and opened on an iOS 26 simulator, with the
-deep link, about 10 minutes more) runs on "Run workflow", at 03:17 UTC on the 1st of each month, and before every release: a `v*`
-tag publishes only when the fast checks and the suite are green. To start the suite by hand, open Actions → build →
-Run workflow on `main`, or run `gh workflow run build.yml --ref main`. The jobs are in
-[.github/workflows/ci.yml](.github/workflows/ci.yml).
+`docs/screenshots/` starts nothing. The device suite (the zipped `.app` installed and opened on an iOS 26 simulator,
+with the deep link, in a job of its own after the build, about 10 minutes more) runs on "Run workflow", at 03:17 UTC on
+the 1st of each month, and before every release: a `v*` tag publishes only when the fast checks and the suite are
+green. The last job, "Every check", lists every check with its outcome. When one fails, **Re-run failed jobs** runs that
+job again (and the list), not the others. To start the suite by hand, open Actions → build → Run workflow on `main`, or
+run `gh workflow run build.yml --ref main`. The jobs are in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Licence
 

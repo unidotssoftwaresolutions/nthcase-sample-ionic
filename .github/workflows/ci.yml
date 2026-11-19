@@ -2,16 +2,26 @@
 #
 #   the fast checks, on every run     web-and-android: typecheck, lint, Vitest, the production build, Playwright in
 #                                     Chromium (light, dark) and WebKit, the debug APK (ubuntu)
-#                                     ios: the Simulator .app, zipped (macos: only a Mac builds for the iOS Simulator)
-#   the device suite, when asked      ios: the zipped .app installed and opened on an iOS 26 simulator, the deep link
-#   (`devices: true`)                 opened, a screenshot of each
+#                                     ios-simulator: the Simulator .app, zipped (macos: only a Mac builds for the iOS
+#                                     Simulator)
+#   the device suite, when asked      ios-simulator-smoke: the zipped .app installed and opened on an iOS 26 simulator,
+#   (`devices: true`)                 the deep link opened, a screenshot of each
+#   always, last                      summary: every check in a table; it fails the run when any check failed or was
+#                                     cancelled, and lists a skipped one as skipped
 #
 # Playwright runs in browsers, not on an emulator or a simulator, so it stays in the fast checks: it is this app's id
 # walk and its screenshots, the Lobby's tree order and injected swipe (build/lobby/), and the GitHub Pages build played
 # through scenarios 12–19 at /nthcase-sample-ionic/, in about 7 minutes on ubuntu. This app has no Android emulator job.
 #
 # build.yml asks for the device suite on "Run workflow" and on the monthly schedule; release.yml always does. On a push
-# or a pull request the simulator step is skipped: no simulator boots.
+# or a pull request the simulator job is skipped: no simulator boots.
+#
+# Each job is one part that can fail on its own, so "Re-run failed jobs" re-runs only what failed (and the summary).
+# The simulator check is a job of its own on the zip ios-simulator built: it builds nothing. web-and-android stays one
+# job: its checks take under a minute each but Playwright (about 5), they all start from the same npm install and the
+# same production build, and the whole job takes about 7 minutes, so a split would save a minute or two on a re-run.
+# Within it, each check runs whatever another found, and the summary lists each. There are no retries anywhere: a flaky
+# check is re-run by a person.
 #
 # Cached, under keys made of what they hold: npm's downloads (actions/setup-node, package-lock.json), Gradle's folders
 # (gradle/actions/setup-gradle's own keys) and Swift Package Manager's checkout of capacitor-swift-pm (the project's
@@ -41,6 +51,14 @@ jobs:
   web-and-android:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      typecheck: ${{ steps.typecheck.outcome }}
+      lint: ${{ steps.lint.outcome }}
+      vitest: ${{ steps.vitest.outcome }}
+      web: ${{ steps.web.outcome }}
+      e2e: ${{ steps.e2e.outcome }}
+      wrapper: ${{ steps.wrapper.outcome }}
+      apk: ${{ steps.apk.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
@@ -49,31 +67,46 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - timeout-minutes: 10
+      - id: install
+        timeout-minutes: 10
         run: npm ci
-      - timeout-minutes: 5
+      # each check runs whatever the one before it found, as long as what it needs worked
+      - id: typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
         run: npm run typecheck
-      - timeout-minutes: 5
+      - id: lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
         run: npm run lint
       # Logic, the flows of scenarios 01–10 and the id census, in jsdom.
-      - timeout-minutes: 10
+      - id: vitest
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 10
         run: npm test
-      - timeout-minutes: 5
+      - id: web
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
         run: npm run build
       # The production build in Playwright's own browsers: Chromium light and dark (every screen, every id, the
       # screenshots, the Lobby), WebKit, the engine of iOS's web view (every screen, every id, the Lobby's DOM order),
       # and the same build under /nthcase-sample-ionic/ as GitHub Pages serves it.
-      - timeout-minutes: 10
+      - id: browsers
+        if: ${{ !cancelled() && steps.web.outcome == 'success' }}
+        timeout-minutes: 10
         run: npx playwright install --with-deps chromium webkit
-      - timeout-minutes: 20
+      - id: e2e
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        timeout-minutes: 20
         run: npm run e2e
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: ${{ !cancelled() && steps.e2e.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
           name: screenshots
           path: docs/screenshots/
           retention-days: 14
-      - if: failure()
+      - if: ${{ !cancelled() && steps.e2e.outcome == 'failure' }}
         timeout-minutes: 5
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -92,30 +125,42 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       # The web build goes into the app: no server, no live reload.
-      - timeout-minutes: 5
+      - id: sync
+        if: ${{ !cancelled() && steps.web.outcome == 'success' }}
+        timeout-minutes: 5
         run: npx cap sync android
-      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      - if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         timeout-minutes: 5
         with:
           distribution: temurin
           java-version: "21"
-      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - id: wrapper
+        if: ${{ !cancelled() && steps.sync.outcome == 'success' }}
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         timeout-minutes: 5
       # Caches Gradle's folders (the wrapper, the dependencies, the build cache) under Gradle's own keys.
-      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - id: gradle
+        if: ${{ !cancelled() && steps.wrapper.outcome == 'success' }}
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         timeout-minutes: 10
-      - timeout-minutes: 20
+      - id: apk
+        if: ${{ !cancelled() && steps.gradle.outcome == 'success' }}
+        timeout-minutes: 20
         run: ./gradlew --no-daemon --max-workers=3 assembleDebug
         working-directory: android
       # dist/ is Vite's web build, so the APK and the zip go in dist-release/
       - name: Name the APK after the version
+        id: name
+        if: ${{ !cancelled() && steps.apk.outcome == 'success' }}
         timeout-minutes: 2
         env:
           VERSION: ${{ inputs.version }}
         run: |
           mkdir -p dist-release
           cp android/app/build/outputs/apk/debug/app-debug.apk "dist-release/mossgrove-ionic-${VERSION}-debug.apk"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: ${{ !cancelled() && steps.name.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         timeout-minutes: 5
         with:
           name: mossgrove-ionic-apk
@@ -126,6 +171,8 @@ jobs:
   ios-simulator:
     runs-on: macos-latest
     timeout-minutes: 45
+    outputs:
+      app: ${{ steps.app.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
@@ -148,6 +195,7 @@ jobs:
           path: ios/App/build/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
       - name: Build the Simulator app (arm64 and x86_64, unsigned) and name it after the version
+        id: app
         working-directory: ios/App
         timeout-minutes: 20
         env:
@@ -167,15 +215,92 @@ jobs:
           path: dist-release/mossgrove-ionic-${{ inputs.version }}-simulator.zip
           if-no-files-found: error
           retention-days: 14
-      # Device suite: the app as built above, on a simulator.
+
+  # Device suite: the app as ios-simulator built and zipped it, the zip a release ships, on a simulator. Nothing is
+  # built here.
+  ios-simulator-smoke:
+    needs: ios-simulator
+    if: ${{ inputs.devices }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    outputs:
+      smoke: ${{ steps.smoke.outcome }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        timeout-minutes: 5
+        with:
+          name: mossgrove-ionic-simulator
+          path: dist-release
+      - name: Unzip the app
+        timeout-minutes: 5
+        env:
+          VERSION: ${{ inputs.version }}
+        run: ditto -x -k "dist-release/mossgrove-ionic-${VERSION}-simulator.zip" build/app
       - name: Install and open it on an iOS 26 simulator
-        if: ${{ inputs.devices }}
+        id: smoke
         timeout-minutes: 20
-        run: ./scripts/ci-simulator-smoke.sh build/smoke ios/App/build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
-      - if: ${{ always() && inputs.devices }}
+        run: ./scripts/ci-simulator-smoke.sh build/smoke build/app/App.app
+      - if: always()
         timeout-minutes: 5
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: simulator-smoke
           path: build/smoke/
           retention-days: 14
+
+  # Every check, from each job's own outcomes, after every job whatever they found. A check is read from its job's
+  # outputs, or, when the job never wrote them (skipped, or stopped before), from the job's result: a skipped check is
+  # listed as skipped, never as passed. Fails the run when any check, or any job outside its checks, failed or was
+  # cancelled; build.yml's Pages deploy and release.yml's github-release need this workflow, so they wait for it.
+  summary:
+    name: Every check
+    needs: [web-and-android, ios-simulator, ios-simulator-smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Every check
+        timeout-minutes: 5
+        env:
+          CHECK_1: "Typecheck|${{ needs.web-and-android.outputs.typecheck || needs.web-and-android.result }}"
+          CHECK_2: "Lint|${{ needs.web-and-android.outputs.lint || needs.web-and-android.result }}"
+          CHECK_3: "Vitest|${{ needs.web-and-android.outputs.vitest || needs.web-and-android.result }}"
+          CHECK_4: "The production build|${{ needs.web-and-android.outputs.web || needs.web-and-android.result }}"
+          CHECK_5: "Playwright, Chromium and WebKit|${{ needs.web-and-android.outputs.e2e || needs.web-and-android.result }}"
+          CHECK_6: "Gradle wrapper validation|${{ needs.web-and-android.outputs.wrapper || needs.web-and-android.result }}"
+          CHECK_7: "The debug APK|${{ needs.web-and-android.outputs.apk || needs.web-and-android.result }}"
+          CHECK_8: "The Simulator .app, zipped|${{ needs.ios-simulator.outputs.app || needs.ios-simulator.result }}"
+          CHECK_9: "The .app on an iOS 26 simulator|${{ needs.ios-simulator-smoke.outputs.smoke || needs.ios-simulator-smoke.result }}"
+          JOB_1: "web-and-android|${{ needs.web-and-android.result }}"
+          JOB_2: "ios-simulator|${{ needs.ios-simulator.result }}"
+          JOB_3: "ios-simulator-smoke|${{ needs.ios-simulator-smoke.result }}"
+        run: |
+          python3 - <<'EOF'
+          import os, sys
+
+          def numbered(prefix):
+              keys = [k for k in os.environ if k.startswith(prefix) and k[len(prefix):].isdigit()]
+              return [os.environ[k] for k in sorted(keys, key=lambda k: int(k[len(prefix):]))]
+
+          checks = [entry.rpartition("|")[::2] for entry in numbered("CHECK_")]
+          jobs = [entry.rpartition("|")[::2] for entry in numbered("JOB_")]
+          mark = {"success": "✅", "failure": "❌", "cancelled": "🚫"}
+          lines = ["## Every check", "", "| Check | Outcome |", "| --- | --- |"]
+          lines += [f"| {name} | {mark.get(outcome, '⏭️')} {outcome or 'not run'} |" for name, outcome in checks]
+          bad = ("failure", "cancelled")
+          failed = [name for name, outcome in checks if outcome in bad]
+          stray = [f"{job} ({result})" for job, result in jobs if result in bad]
+          if stray and not failed:
+              lines += ["", "A job failed outside its checks: " + ", ".join(stray)]
+          page = "\n".join(lines) + "\n"
+          print(page)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(page)
+          if failed or stray:
+              what = f"{len(failed)} of {len(checks)} checks failed or were cancelled: {', '.join(failed)}" if failed \
+                  else f"a job failed: {', '.join(stray)}"
+              print(f"::error title=Checks failed::{what}")
+              sys.exit(1)
+          EOF
